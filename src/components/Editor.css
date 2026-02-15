@@ -117,3 +117,123 @@
 .editor__cm-container .cm-editor {
   height: 100%;
 }
+
+/* Tab bar actions (diff toggle) */
+.editor__tab-bar-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.editor__diff-toggle {
+  padding: 3px 10px;
+  font-size: 11px;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-weight: 500;
+}
+
+.editor__diff-toggle:hover {
+  background: var(--bg-button);
+  color: var(--text-secondary);
+}
+
+.editor__diff-toggle--active {
+  background: var(--accent-blue-bg);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue-bg);
+}
+
+.editor__diff-toggle:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Diff view container */
+.editor__diff-container {
+  flex: 1;
+  overflow: auto;
+}
+
+.diff-view {
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 12px 0;
+}
+
+.diff-view__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.diff-view__line {
+  display: flex;
+  padding: 0 16px;
+  min-height: 22px;
+}
+
+.diff-view__line-number {
+  width: 40px;
+  flex-shrink: 0;
+  text-align: right;
+  padding-right: 12px;
+  color: var(--text-faint);
+  user-select: none;
+}
+
+.diff-view__line-content {
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-all;
+  padding: 0 8px;
+}
+
+.diff-view__line--added {
+  background: rgba(76, 175, 80, 0.12);
+}
+
+.diff-view__line--added .diff-view__line-content {
+  color: #4caf50;
+}
+
+.diff-view__line--removed {
+  background: rgba(244, 67, 54, 0.12);
+}
+
+.diff-view__line--removed .diff-view__line-content {
+  color: #f44336;
+}
+
+.diff-view__line--hunk {
+  background: rgba(33, 150, 243, 0.08);
+}
+
+.diff-view__line--hunk .diff-view__line-content {
+  color: var(--accent-blue, #2196f3);
+  font-style: italic;
+}
+
+.diff-view__line--header {
+  background: var(--bg-hover-subtle);
+}
+
+.diff-view__line--header .diff-view__line-content {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.diff-view__line--context .diff-view__line-content {
+  color: var(--text-secondary);
+}

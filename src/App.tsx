@@ -486,6 +486,20 @@ function App() {
     return handleUpdateFrontmatter(path, key, value)
   }, [handleUpdateFrontmatter])
 
+  // Diff loading
+  const handleLoadDiff = useCallback(async (path: string): Promise<string> => {
+    if (isTauri()) {
+      const vaultPath = TEST_VAULT_PATH.replace('~', '/Users/luca')
+      return invoke<string>('get_file_diff', { vaultPath, path })
+    } else {
+      return mockInvoke<string>('get_file_diff', { path })
+    }
+  }, [])
+
+  const isFileModified = useCallback((path: string): boolean => {
+    return modifiedFiles.some((f) => f.path === path)
+  }, [modifiedFiles])
+
   return (
     <div className="app">
       <div className="app__sidebar" style={{ width: sidebarWidth }}>
@@ -503,6 +517,8 @@ function App() {
           onSwitchTab={handleSwitchTab}
           onCloseTab={handleCloseTab}
           onNavigateWikilink={handleNavigateWikilink}
+          onLoadDiff={handleLoadDiff}
+          isModified={isFileModified}
         />
       </div>
       {!inspectorCollapsed && <ResizeHandle onResize={handleInspectorResize} />}

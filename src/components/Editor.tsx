@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
@@ -21,6 +21,8 @@ interface EditorProps {
   onSwitchTab: (path: string) => void
   onCloseTab: (path: string) => void
   onNavigateWikilink: (target: string) => void
+  onLoadDiff?: (path: string) => Promise<string>
+  isModified?: (path: string) => boolean
 }
 
 const editorTheme = EditorView.theme({
@@ -67,17 +69,83 @@ const editorTheme = EditorView.theme({
   },
 })
 
-export function Editor({ tabs, activeTabPath, onSwitchTab, onCloseTab, onNavigateWikilink }: EditorProps) {
+function DiffView({ diff }: { diff: string }) {
+  if (!diff) {
+    return (
+      <div className="diff-view__empty">
+        No changes to display
+      </div>
+    )
+  }
+
+  const lines = diff.split('\n')
+
+  return (
+    <div className="diff-view">
+      {lines.map((line, i) => {
+        let className = 'diff-view__line diff-view__line--context'
+        if (line.startsWith('+') && !line.startsWith('+++')) {
+          className = 'diff-view__line diff-view__line--added'
+        } else if (line.startsWith('-') && !line.startsWith('---')) {
+          className = 'diff-view__line diff-view__line--removed'
+        } else if (line.startsWith('@@')) {
+          className = 'diff-view__line diff-view__line--hunk'
+        } else if (line.startsWith('diff') || line.startsWith('index') || line.startsWith('---') || line.startsWith('+++') || line.startsWith('new file')) {
+          className = 'diff-view__line diff-view__line--header'
+        }
+
+        return (
+          <div key={i} className={className}>
+            <span className="diff-view__line-number">{i + 1}</span>
+            <span className="diff-view__line-content">{line || '\u00A0'}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export function Editor({ tabs, activeTabPath, onSwitchTab, onCloseTab, onNavigateWikilink, onLoadDiff, isModified }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const navigateRef = useRef(onNavigateWikilink)
   navigateRef.current = onNavigateWikilink
 
+  const [diffMode, setDiffMode] = useState(false)
+  const [diffContent, setDiffContent] = useState<string | null>(null)
+  const [diffLoading, setDiffLoading] = useState(false)
+
   const activeTab = tabs.find((t) => t.entry.path === activeTabPath) ?? null
+  const showDiffToggle = activeTab && isModified?.(activeTab.entry.path)
+
+  // Reset diff mode when switching tabs
+  useEffect(() => {
+    setDiffMode(false)
+    setDiffContent(null)
+  }, [activeTabPath])
+
+  const handleToggleDiff = useCallback(async () => {
+    if (diffMode) {
+      setDiffMode(false)
+      setDiffContent(null)
+      return
+    }
+    if (!activeTabPath || !onLoadDiff) return
+    setDiffLoading(true)
+    try {
+      const diff = await onLoadDiff(activeTabPath)
+      setDiffContent(diff)
+      setDiffMode(true)
+    } catch (err) {
+      console.warn('Failed to load diff:', err)
+    } finally {
+      setDiffLoading(false)
+    }
+  }, [diffMode, activeTabPath, onLoadDiff])
 
   // Create/destroy editor view when active tab changes
   useEffect(() => {
-    if (!containerRef.current || !activeTab) return
+    if (!containerRef.current || !activeTab || diffMode) return
 
     // If view already exists for this tab, skip
     if (viewRef.current) {
@@ -120,9 +188,8 @@ export function Editor({ tabs, activeTabPath, onSwitchTab, onCloseTab, onNavigat
       view.destroy()
       viewRef.current = null
     }
-  // Re-create when active tab path changes OR when tab data becomes available
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTabPath, activeTab?.content])
+  }, [activeTabPath, activeTab?.content, diffMode])
 
   if (tabs.length === 0) {
     return (
@@ -157,8 +224,26 @@ export function Editor({ tabs, activeTabPath, onSwitchTab, onCloseTab, onNavigat
             </button>
           </div>
         ))}
+        {showDiffToggle && (
+          <div className="editor__tab-bar-actions">
+            <button
+              className={`editor__diff-toggle${diffMode ? ' editor__diff-toggle--active' : ''}`}
+              onClick={handleToggleDiff}
+              disabled={diffLoading}
+              title={diffMode ? 'Switch to Edit view' : 'Show diff'}
+            >
+              {diffLoading ? '...' : diffMode ? 'Edit' : 'Diff'}
+            </button>
+          </div>
+        )}
       </div>
-      <div className="editor__cm-container" ref={containerRef} />
+      {diffMode ? (
+        <div className="editor__diff-container">
+          <DiffView diff={diffContent ?? ''} />
+        </div>
+      ) : (
+        <div className="editor__cm-container" ref={containerRef} />
+      )}
     </div>
   )
 }
