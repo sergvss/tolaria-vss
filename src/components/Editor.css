@@ -127,6 +127,8 @@
 .editor__blocknote-container {
   flex: 1;
   overflow: auto;
+  display: flex;
+  justify-content: center;
 }
 
 .editor__blocknote-container .bn-container {

@@ -9,6 +9,7 @@
   font-size: var(--editor-font-size);
   line-height: var(--editor-line-height);
   max-width: var(--editor-max-width);
+  margin: 0 auto;  /* Center the editor body */
   padding: var(--editor-padding-vertical) var(--editor-padding-horizontal);
   color: var(--colors-text);
   caret-color: var(--colors-cursor);
@@ -28,6 +29,15 @@
   gap: 0 !important;
 }
 
+/* More horizontal space between drag handle and content */
+.editor__blocknote-container .bn-side-menu ~ * ,
+.editor__blocknote-container [class*="bn-side-menu"] {
+  /* The side menu is positioned via transform — we shift it further left */
+}
+.editor__blocknote-container .bn-block-content {
+  margin-left: 8px;
+}
+
 .editor__blocknote-container .bn-editor ::selection {
   background: var(--colors-selection);
 }
@@ -42,10 +52,15 @@
    and ensure the handle aligns by NOT adding padding/margin on inner elements.
    BlockNote positions handles via JS based on .bn-block-content bounding rect. */
 
-.editor__blocknote-container .bn-block-outer:has(> .bn-block > [data-content-type="heading"][data-level="1"]) {
+/* Title (H1) — visually separated from content.
+   BlockNote renders H1 without data-level, so we target :has(h1) */
+.editor__blocknote-container .bn-block-outer:has(h1) {
   margin-top: var(--headings-h1-margin-top) !important;
   margin-bottom: var(--headings-h1-margin-bottom) !important;
+  padding-bottom: 16px !important;
+  border-bottom: 1px solid var(--border-primary, rgba(0,0,0,0.1));
 }
+.editor__blocknote-container [data-content-type="heading"]:not([data-level]) .bn-inline-content,
 .editor__blocknote-container [data-content-type="heading"][data-level="1"] .bn-inline-content {
   font-size: var(--headings-h1-font-size);
   font-weight: var(--headings-h1-font-weight);
@@ -110,9 +125,15 @@
   flex-shrink: 0 !important;
 }
 
-/* Nested list indentation */
+/* Nested list indentation — shift the left border to align with bullet symbols */
 .editor__blocknote-container .bn-block-group .bn-block-group {
   margin-left: var(--lists-indent-size);
+}
+
+/* Align the vertical nesting lines (left border) with the center of the bullet */
+.editor__blocknote-container .bn-block-group .bn-block-group[class] {
+  padding-left: calc(var(--lists-indent-size) / 2) !important;
+  border-left-width: 1px !important;
 }
 
 /* --- Numbered lists --- */
