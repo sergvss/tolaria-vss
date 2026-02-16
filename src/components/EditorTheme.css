@@ -82,6 +82,7 @@
 .editor__blocknote-container [data-content-type="bulletListItem"] {
   padding-left: var(--lists-padding-left);
   margin-bottom: var(--lists-item-spacing);
+  gap: var(--lists-bullet-gap) !important;
 }
 
 .editor__blocknote-container [data-content-type="bulletListItem"]::before {
@@ -104,6 +105,7 @@
 .editor__blocknote-container [data-content-type="numberedListItem"] {
   padding-left: var(--lists-padding-left);
   margin-bottom: var(--lists-item-spacing);
+  gap: var(--lists-bullet-gap) !important;
 }
 
 .editor__blocknote-container [data-content-type="numberedListItem"]::before {
@@ -120,6 +122,7 @@
 /* BlockNote renders checkbox as: div > input[type=checkbox] inside .bn-block-content */
 .editor__blocknote-container [data-content-type="checkListItem"] {
   margin-bottom: var(--lists-item-spacing);
+  gap: var(--checkboxes-gap) !important;
 }
 
 .editor__blocknote-container [data-content-type="checkListItem"] input[type="checkbox"] {

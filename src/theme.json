@@ -53,13 +53,19 @@
     "indentSize": 24,
     "itemSpacing": 4,
     "paddingLeft": 8,
-    "nestedBulletSymbols": ["•", "◦", "▪"]
+    "nestedBulletSymbols": [
+      "•",
+      "◦",
+      "▪"
+    ],
+    "bulletGap": 8
   },
   "checkboxes": {
     "size": 16,
     "borderRadius": 3,
     "checkedColor": "var(--accent-blue)",
-    "uncheckedBorderColor": "var(--text-muted)"
+    "uncheckedBorderColor": "var(--text-muted)",
+    "gap": 8
   },
   "inlineStyles": {
     "bold": {
