@@ -37,7 +37,11 @@ Laputa App is a personal knowledge and life management desktop app, built with T
 - **Small steps**: Build one thing at a time. Get it working, test it, commit it. Then move to the next.
 - **Test as you go**: Write tests alongside code, not after. If you build a frontmatter parser, test it immediately with real-world examples before moving on.
 - **Verify constantly**: After each meaningful change, run the relevant tests (`cargo test`, `pnpm test`). Don't stack up a bunch of code and hope it all works.
-- **Commit often**: Each logical unit of work gets its own commit with a clear message. Not one giant commit at the end.
+- **Commit often — small and atomic**: Each logical unit of work gets its own commit with a clear message. NEVER batch multiple features or fixes into one big commit. Examples of good atomic commits:
+  - `feat: update color palette and CSS variables`
+  - `feat: restructure sidebar with collapsible sections`
+  - `fix: editor scroll overflow`
+  One concern per commit. If you're doing a multi-phase task, commit after EACH phase, not at the end. This makes reviews, reverts, and bisecting possible.
 
 ### Testing
 - `pnpm test` runs Vitest (unit tests)
