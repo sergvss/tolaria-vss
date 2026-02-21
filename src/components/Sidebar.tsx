@@ -78,11 +78,6 @@ export const Sidebar = memo(function Sidebar({ entries, selection, onSelect, onS
     return map
   }, [entries])
 
-  const getSectionColor = (entry: VaultEntry) => {
-    const typeEntry = typeEntryMap[entry.isA ?? '']
-    return getTypeColor(entry.isA ?? 'Note', typeEntry?.color)
-  }
-
   const isActive = (sel: SidebarSelection): boolean => {
     if (selection.kind !== sel.kind) return false
     if (sel.kind === 'filter' && selection.kind === 'filter') return sel.filter === selection.filter
