@@ -5,7 +5,7 @@ pub mod vault;
 
 use ai_chat::{AiChatRequest, AiChatResponse};
 use git::{GitCommit, ModifiedFile};
-use vault::VaultEntry;
+use vault::{VaultEntry, RenameResult};
 use frontmatter::FrontmatterValue;
 
 #[tauri::command]
@@ -64,6 +64,11 @@ fn save_image(vault_path: String, filename: String, data: String) -> Result<Stri
 }
 
 #[tauri::command]
+fn rename_note(vault_path: String, old_path: String, new_title: String) -> Result<RenameResult, String> {
+    vault::rename_note(&vault_path, &old_path, &new_title)
+}
+
+#[tauri::command]
 fn purge_trash(vault_path: String) -> Result<Vec<String>, String> {
     vault::purge_trash(&vault_path)
 }
@@ -103,6 +108,7 @@ pub fn run() {
             get_note_content,
             update_frontmatter,
             delete_frontmatter_property,
+            rename_note,
             get_file_history,
             get_modified_files,
             get_file_diff,
