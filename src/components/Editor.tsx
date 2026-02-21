@@ -210,7 +210,9 @@ export const Editor = memo(function Editor({
     return cleanup
   }, [editor])
 
-  // Swap document content when active tab changes
+  // Swap document content when active tab changes.
+  // Uses queueMicrotask to defer BlockNote mutations outside React's commit phase,
+  // avoiding flushSync-inside-lifecycle errors that silently prevent content from rendering.
   useEffect(() => {
     const cache = tabCacheRef.current
     const prevPath = prevActivePathRef.current
@@ -228,17 +230,14 @@ export const Editor = memo(function Editor({
 
     const applyBlocks = (blocks: any[]) => {
       try {
-        // Clear all current content and insert new blocks
         const current = editor.document
         if (current.length > 0 && blocks.length > 0) {
           editor.replaceBlocks(current, blocks)
         } else if (blocks.length > 0) {
-          // Editor empty — insert at the beginning
           editor.insertBlocks(blocks, current[0], 'before')
         }
       } catch (err) {
         console.error('applyBlocks failed, trying fallback:', err)
-        // Fallback: use tiptap's setContent via blocksToHTMLLossy
         try {
           const html = editor.blocksToHTMLLossy(blocks)
           editor._tiptapEditor.commands.setContent(html)
@@ -248,40 +247,50 @@ export const Editor = memo(function Editor({
       }
     }
 
-    try {
-      const doSwap = () => {
-        if (cache.has(activeTabPath)) {
-          applyBlocks(cache.get(activeTabPath)!)
-        } else {
-          const [, rawBody] = splitFrontmatter(tab.content)
-          // Strip leading H1 title — it's already shown in the tab and breadcrumb
-          const body = rawBody.replace(/^# [^\n]*\n?/, '').trimStart()
-          const preprocessed = preProcessWikilinks(body)
-          const targetPath = activeTabPath
-          // tryParseMarkdownToBlocks may return a Promise or blocks directly
-          const result = editor.tryParseMarkdownToBlocks(preprocessed)
-          const handleBlocks = (blocks: any[]) => {
-            const withWikilinks = injectWikilinks(blocks)
-            if (prevActivePathRef.current !== targetPath) return
-            cache.set(targetPath, withWikilinks)
-            applyBlocks(withWikilinks)
-          }
-          if (result && typeof (result as any).then === 'function') {
-            (result as unknown as Promise<any[]>).then(handleBlocks)
-          } else {
-            handleBlocks(result as any[])
-          }
-        }
+    const targetPath = activeTabPath
+
+    const doSwap = () => {
+      // Guard: bail if user switched tabs since this swap was scheduled
+      if (prevActivePathRef.current !== targetPath) return
+
+      if (cache.has(targetPath)) {
+        applyBlocks(cache.get(targetPath)!)
+        return
       }
 
-      // If editor is mounted, swap immediately. Otherwise wait for mount.
-      if (editor.prosemirrorView) {
-        doSwap()
-      } else {
-        pendingSwapRef.current = doSwap
+      const [, rawBody] = splitFrontmatter(tab.content)
+      const body = rawBody.replace(/^# [^\n]*\n?/, '').trimStart()
+      const preprocessed = preProcessWikilinks(body)
+
+      try {
+        const result = editor.tryParseMarkdownToBlocks(preprocessed)
+        const handleBlocks = (blocks: any[]) => {
+          if (prevActivePathRef.current !== targetPath) return
+          const withWikilinks = injectWikilinks(blocks)
+          // Only cache non-empty results to avoid poisoning the cache
+          if (withWikilinks.length > 0) {
+            cache.set(targetPath, withWikilinks)
+          }
+          applyBlocks(withWikilinks)
+        }
+        if (result && typeof (result as any).then === 'function') {
+          (result as unknown as Promise<any[]>).then(handleBlocks).catch((err) => {
+            console.error('Async markdown parse failed:', err)
+          })
+        } else {
+          handleBlocks(result as any[])
+        }
+      } catch (err) {
+        console.error('Failed to parse/swap editor content:', err)
       }
-    } catch (err) {
-      console.error('Failed to swap editor content:', err)
+    }
+
+    if (editor.prosemirrorView) {
+      // Defer the swap outside React's commit phase so BlockNote's internal
+      // flushSync calls don't collide with React's rendering lifecycle.
+      queueMicrotask(doSwap)
+    } else {
+      pendingSwapRef.current = doSwap
     }
   }, [activeTabPath, tabs, editor])
 
