@@ -96,6 +96,10 @@ function App() {
     setToastMessage(`Type "${name}" created`)
   }, [notes])
 
+  const handleRenameTab = useCallback((path: string, newTitle: string) => {
+    notes.handleRenameNote(path, newTitle, vaultPath, vault.replaceEntry)
+  }, [notes, vaultPath, vault])
+
   useAppKeyboard({
     onQuickOpen: () => setShowQuickOpen(true),
     onCreateNote: handleCreateNoteImmediate,
@@ -173,6 +177,7 @@ function App() {
             onRestoreNote={entryActions.handleRestoreNote}
             onArchiveNote={entryActions.handleArchiveNote}
             onUnarchiveNote={entryActions.handleUnarchiveNote}
+            onRenameTab={handleRenameTab}
           />
         </div>
       </div>

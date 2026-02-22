@@ -1,4 +1,4 @@
-import { memo, useState, useRef, useCallback } from 'react'
+import { memo, useState, useRef, useCallback, useEffect } from 'react'
 import type { VaultEntry } from '../types'
 import { cn } from '@/lib/utils'
 import { X } from 'lucide-react'
@@ -16,9 +16,72 @@ interface TabBarProps {
   onCloseTab: (path: string) => void
   onCreateNote?: () => void
   onReorderTabs?: (fromIndex: number, toIndex: number) => void
+  onRenameTab?: (path: string, newTitle: string) => void
 }
 
 const DISABLED_ICON_STYLE = { opacity: 0.4, cursor: 'not-allowed' } as const
+
+// --- Inline edit ---
+
+/** Inline edit input shown when user double-clicks a tab title. */
+function InlineTabEdit({ initialValue, onSave, onCancel }: {
+  initialValue: string
+  onSave: (value: string) => void
+  onCancel: () => void
+}) {
+  const [value, setValue] = useState(initialValue)
+  const inputRef = useRef<HTMLInputElement>(null)
+  // Guard against double-fire: Enter calls handleSave, then React unmounts
+  // the input (editingPath → null), which triggers blur → handleSave again.
+  const committedRef = useRef(false)
+
+  useEffect(() => {
+    inputRef.current?.select()
+  }, [])
+
+  const handleSave = useCallback(() => {
+    if (committedRef.current) return
+    committedRef.current = true
+    const trimmed = value.trim()
+    if (trimmed && trimmed !== initialValue) {
+      onSave(trimmed)
+    } else {
+      onCancel()
+    }
+  }, [value, initialValue, onSave, onCancel])
+
+  return (
+    <input
+      ref={inputRef}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') handleSave()
+        if (e.key === 'Escape') onCancel()
+        e.stopPropagation()
+      }}
+      onBlur={handleSave}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
+      style={{
+        width: '100%',
+        minWidth: 40,
+        maxWidth: 150,
+        background: 'var(--background)',
+        border: '1px solid var(--ring)',
+        borderRadius: 3,
+        padding: '2px 6px',
+        fontSize: 12,
+        fontWeight: 500,
+        color: 'var(--foreground)',
+        outline: 'none',
+        fontFamily: 'inherit',
+      }}
+    />
+  )
+}
 
 // --- Drag-and-drop helpers ---
 
@@ -88,19 +151,23 @@ function DropIndicator({ side }: { side: 'left' | 'right' }) {
   )
 }
 
-function TabItem({ tab, isActive, isDragging, showDropBefore, showDropAfter, onSwitch, onClose, dragProps }: {
+function TabItem({ tab, isActive, isEditing, isDragging, showDropBefore, showDropAfter, onSwitch, onClose, onDoubleClick, onRenameSave, onRenameCancel, dragProps }: {
   tab: Tab
   isActive: boolean
+  isEditing: boolean
   isDragging: boolean
   showDropBefore: boolean
   showDropAfter: boolean
   onSwitch: () => void
   onClose: () => void
+  onDoubleClick: () => void
+  onRenameSave: (newTitle: string) => void
+  onRenameCancel: () => void
   dragProps: React.HTMLAttributes<HTMLDivElement>
 }) {
   return (
     <div
-      draggable
+      draggable={!isEditing}
       {...dragProps}
       className={cn(
         "group flex shrink-0 items-center gap-1.5 whitespace-nowrap max-w-[180px] transition-all relative",
@@ -112,13 +179,19 @@ function TabItem({ tab, isActive, isDragging, showDropBefore, showDropAfter, onS
         borderBottom: isActive ? 'none' : '1px solid var(--sidebar-border)',
         padding: '0 12px', fontSize: 12,
         fontWeight: isActive ? 500 : 400,
-        cursor: isDragging ? 'grabbing' : 'grab',
+        cursor: isEditing ? 'default' : isDragging ? 'grabbing' : 'grab',
         WebkitAppRegion: 'no-drag',
       } as React.CSSProperties}
-      onClick={onSwitch}
+      onClick={() => !isEditing && onSwitch()}
     >
       {showDropBefore && <DropIndicator side="left" />}
-      <span className="truncate">{tab.entry.title}</span>
+      {isEditing ? (
+        <InlineTabEdit initialValue={tab.entry.title} onSave={onRenameSave} onCancel={onRenameCancel} />
+      ) : (
+        <span className="truncate" onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick() }}>
+          {tab.entry.title}
+        </span>
+      )}
       <button
         className={cn(
           "shrink-0 rounded-sm p-0 bg-transparent border-none text-muted-foreground cursor-pointer transition-opacity hover:bg-accent hover:text-foreground",
@@ -160,9 +233,10 @@ function TabBarActions({ onCreateNote }: { onCreateNote?: () => void }) {
 // --- Main TabBar ---
 
 export const TabBar = memo(function TabBar({
-  tabs, activeTabPath, onSwitchTab, onCloseTab, onCreateNote, onReorderTabs,
+  tabs, activeTabPath, onSwitchTab, onCloseTab, onCreateNote, onReorderTabs, onRenameTab,
 }: TabBarProps) {
   const { dragIndex, dropIndex, handleDragStart, handleDragEnd, handleDragOver, handleDrop, handleBarDragLeave } = useTabDrag(onReorderTabs)
+  const [editingPath, setEditingPath] = useState<string | null>(null)
 
   return (
     <div
@@ -176,11 +250,15 @@ export const TabBar = memo(function TabBar({
           key={tab.entry.path}
           tab={tab}
           isActive={tab.entry.path === activeTabPath}
+          isEditing={editingPath === tab.entry.path}
           isDragging={dragIndex !== null}
           showDropBefore={dropIndex === index}
           showDropAfter={dropIndex === index + 1 && index === tabs.length - 1}
           onSwitch={() => onSwitchTab(tab.entry.path)}
           onClose={() => onCloseTab(tab.entry.path)}
+          onDoubleClick={() => onRenameTab && setEditingPath(tab.entry.path)}
+          onRenameSave={(newTitle) => { setEditingPath(null); onRenameTab?.(tab.entry.path, newTitle) }}
+          onRenameCancel={() => setEditingPath(null)}
           dragProps={{
             onDragStart: (e) => handleDragStart(e, index),
             onDragEnd: handleDragEnd,

@@ -54,6 +54,7 @@ interface EditorProps {
   onRestoreNote?: (path: string) => void
   onArchiveNote?: (path: string) => void
   onUnarchiveNote?: (path: string) => void
+  onRenameTab?: (path: string, newTitle: string) => void
 }
 
 // --- Custom Inline Content: WikiLink ---
@@ -199,6 +200,7 @@ export const Editor = memo(function Editor({
   vaultPath,
   onTrashNote, onRestoreNote,
   onArchiveNote, onUnarchiveNote,
+  onRenameTab,
 }: EditorProps) {
   const [diffMode, setDiffMode] = useState(false)
   const [diffContent, setDiffContent] = useState<string | null>(null)
@@ -419,6 +421,7 @@ export const Editor = memo(function Editor({
       onCloseTab={onCloseTab}
       onCreateNote={onCreateNote}
       onReorderTabs={onReorderTabs}
+      onRenameTab={onRenameTab}
     />
   )
 
