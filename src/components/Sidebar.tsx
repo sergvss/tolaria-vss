@@ -267,7 +267,8 @@ export const Sidebar = memo(function Sidebar({
   }
 
   return (
-    <aside className="flex h-full flex-col overflow-hidden border-r border-[var(--sidebar-border)] bg-sidebar text-sidebar-foreground" style={{ paddingTop: 38 } as React.CSSProperties}>
+    <aside className="flex h-full flex-col overflow-hidden border-r border-[var(--sidebar-border)] bg-sidebar text-sidebar-foreground">
+      <div className="shrink-0 border-b border-border" style={{ height: 38, WebkitAppRegion: 'drag' } as React.CSSProperties} data-tauri-drag-region />
       <nav className="flex-1 overflow-y-auto">
         {/* Top nav */}
         <div className="border-b border-border" style={{ padding: '4px 6px' }}>
