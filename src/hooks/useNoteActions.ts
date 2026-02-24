@@ -49,6 +49,15 @@ async function loadNoteContent(path: string): Promise<string> {
     : mockInvoke<string>('get_note_content', { path })
 }
 
+/** Fire-and-forget: persist a newly created note to disk. */
+function persistNewNote(path: string, content: string): void {
+  if (isTauri()) {
+    invoke('save_note_content', { path, content }).catch((err) =>
+      console.error('Failed to persist new note:', err),
+    )
+  }
+}
+
 export function buildNewEntry({ path, slug, title, type, status }: NewEntryParams): VaultEntry {
   const now = Math.floor(Date.now() / 1000)
   return {
@@ -64,10 +73,11 @@ export function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
-/** Generate a unique "Untitled <type>" name by checking existing entries. */
-export function generateUntitledName(entries: VaultEntry[], type: string): string {
+/** Generate a unique "Untitled <type>" name by checking existing entries and pending names. */
+export function generateUntitledName(entries: VaultEntry[], type: string, pending?: Set<string>): string {
   const baseName = `Untitled ${type.toLowerCase()}`
   const existingTitles = new Set(entries.map(e => e.title))
+  if (pending) pending.forEach(n => existingTitles.add(n))
   let title = baseName
   let counter = 2
   while (existingTitles.has(title)) {
@@ -195,7 +205,7 @@ async function reloadTabsAfterRename(
 export function useNoteActions(config: NoteActionsConfig) {
   const { addEntry, updateContent, entries, setToastMessage, updateEntry } = config
   const tabMgmt = useTabManagement()
-  const { setTabs, handleSelectNote, activeTabPathRef, handleSwitchTab } = tabMgmt
+  const { setTabs, handleSelectNote, openTabWithContent, activeTabPathRef, handleSwitchTab } = tabMgmt
   const tabsRef = useRef(tabMgmt.tabs)
   // eslint-disable-next-line react-hooks/refs
   tabsRef.current = tabMgmt.tabs
@@ -211,17 +221,31 @@ export function useNoteActions(config: NoteActionsConfig) {
     else console.warn(`Navigation target not found: ${target}`)
   }, [entries, handleSelectNote])
 
+  const pendingNamesRef = useRef<Set<string>>(new Set())
+
   const handleCreateNote = useCallback((title: string, type: string) => {
     const { entry, content } = resolveNewNote(title, type)
     addEntryWithMock(entry, content, addEntry)
-    handleSelectNote(entry)
-  }, [handleSelectNote, addEntry])
+    openTabWithContent(entry, content)
+    persistNewNote(entry.path, content)
+  }, [openTabWithContent, addEntry])
+
+  /** Create a note immediately with an auto-generated unique title. Dedup-safe for rapid calls. */
+  const handleCreateNoteImmediate = useCallback((type?: string) => {
+    const noteType = type || 'Note'
+    const title = generateUntitledName(entries, noteType, pendingNamesRef.current)
+    pendingNamesRef.current.add(title)
+    handleCreateNote(title, noteType)
+    window.dispatchEvent(new CustomEvent('laputa:focus-editor'))
+    setTimeout(() => pendingNamesRef.current.delete(title), 500)
+  }, [entries, handleCreateNote])
 
   const handleCreateType = useCallback((typeName: string) => {
     const { entry, content } = resolveNewType(typeName)
     addEntryWithMock(entry, content, addEntry)
-    handleSelectNote(entry)
-  }, [handleSelectNote, addEntry])
+    openTabWithContent(entry, content)
+    persistNewNote(entry.path, content)
+  }, [openTabWithContent, addEntry])
 
   const runFrontmatterOp = useCallback(async (op: 'update' | 'delete', path: string, key: string, value?: FrontmatterValue) => {
     try {
@@ -267,6 +291,7 @@ export function useNoteActions(config: NoteActionsConfig) {
     ...tabMgmt,
     handleNavigateWikilink,
     handleCreateNote,
+    handleCreateNoteImmediate,
     handleCreateType,
     handleUpdateFrontmatter: useCallback((path: string, key: string, value: FrontmatterValue) => runFrontmatterOp('update', path, key, value), [runFrontmatterOp]),
     handleDeleteProperty: useCallback((path: string, key: string) => runFrontmatterOp('delete', path, key), [runFrontmatterOp]),

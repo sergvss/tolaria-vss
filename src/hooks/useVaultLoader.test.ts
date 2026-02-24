@@ -98,6 +98,28 @@ describe('useVaultLoader', () => {
       expect(result.current.entries[0].title).toBe('New Note')
       expect(result.current.allContent['/vault/note/new.md']).toBe('# New Note')
     })
+
+    it('ignores duplicate entry with same path', async () => {
+      const { result } = renderHook(() => useVaultLoader('/vault'))
+
+      await waitFor(() => {
+        expect(result.current.entries).toHaveLength(1)
+      })
+
+      const newEntry: VaultEntry = {
+        ...mockEntries[0],
+        path: '/vault/note/new.md',
+        filename: 'new.md',
+        title: 'New Note',
+      }
+
+      act(() => {
+        result.current.addEntry(newEntry, '# New Note')
+        result.current.addEntry(newEntry, '# New Note')
+      })
+
+      expect(result.current.entries).toHaveLength(2)
+    })
   })
 
   describe('updateContent', () => {

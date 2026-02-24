@@ -129,6 +129,17 @@ describe('generateUntitledName', () => {
   it('uses type name in lowercase', () => {
     expect(generateUntitledName([], 'Project')).toBe('Untitled project')
   })
+
+  it('avoids names in the pending set', () => {
+    const pending = new Set(['Untitled note'])
+    expect(generateUntitledName([], 'Note', pending)).toBe('Untitled note 2')
+  })
+
+  it('avoids both existing and pending names', () => {
+    const entries = [makeEntry({ title: 'Untitled note' })]
+    const pending = new Set(['Untitled note 2'])
+    expect(generateUntitledName(entries, 'Note', pending)).toBe('Untitled note 3')
+  })
 })
 
 describe('entryMatchesTarget', () => {
@@ -371,6 +382,48 @@ describe('useNoteActions hook', () => {
     expect(updateContent).toHaveBeenCalled()
     expect(updateEntry).toHaveBeenCalledWith('/vault/note.md', { status: null })
     expect(setToastMessage).toHaveBeenCalledWith('Property deleted')
+  })
+
+  it('handleCreateNoteImmediate creates note with auto-generated title', () => {
+    const { result } = renderHook(() => useNoteActions(makeConfig()))
+
+    act(() => {
+      result.current.handleCreateNoteImmediate()
+    })
+
+    expect(addEntry).toHaveBeenCalledTimes(1)
+    const [createdEntry] = addEntry.mock.calls[0]
+    expect(createdEntry.title).toBe('Untitled note')
+    expect(createdEntry.isA).toBe('Note')
+  })
+
+  it('handleCreateNoteImmediate generates unique names on rapid calls', () => {
+    const { result } = renderHook(() => useNoteActions(makeConfig()))
+
+    act(() => {
+      result.current.handleCreateNoteImmediate()
+      result.current.handleCreateNoteImmediate()
+      result.current.handleCreateNoteImmediate()
+    })
+
+    expect(addEntry).toHaveBeenCalledTimes(3)
+    const titles = addEntry.mock.calls.map(([e]: [VaultEntry]) => e.title)
+    expect(titles[0]).toBe('Untitled note')
+    expect(titles[1]).toBe('Untitled note 2')
+    expect(titles[2]).toBe('Untitled note 3')
+  })
+
+  it('handleCreateNoteImmediate accepts custom type', () => {
+    const { result } = renderHook(() => useNoteActions(makeConfig()))
+
+    act(() => {
+      result.current.handleCreateNoteImmediate('Project')
+    })
+
+    expect(addEntry).toHaveBeenCalledTimes(1)
+    const [createdEntry] = addEntry.mock.calls[0]
+    expect(createdEntry.title).toBe('Untitled project')
+    expect(createdEntry.isA).toBe('Project')
   })
 
   it('handleUpdateFrontmatter does not call updateEntry for unknown keys', async () => {

@@ -126,6 +126,13 @@ export function useTabManagement() {
     setTabs((prev) => { const next = reorderArray(prev, fromIndex, toIndex); saveTabOrder(next); return next })
   }, [])
 
+  /** Open a tab with known content — no IPC round-trip. Used for newly created notes. */
+  const openTabWithContent = useCallback((entry: VaultEntry, content: string) => {
+    if (isTabOpen(tabsRef.current, entry.path)) { setActiveTabPath(entry.path); return }
+    setTabs((prev) => addTabIfAbsent(prev, entry, content))
+    setActiveTabPath(entry.path)
+  }, [])
+
   const handleReplaceActiveTab = useCallback(async (entry: VaultEntry) => {
     if (isTabOpen(tabsRef.current, entry.path)) { setActiveTabPath(entry.path); return }
     const currentPath = activeTabPathRef.current
@@ -158,6 +165,7 @@ export function useTabManagement() {
     activeTabPathRef,
     handleCloseTabRef,
     handleSelectNote,
+    openTabWithContent,
     handleCloseTab,
     handleSwitchTab,
     handleReorderTabs,

@@ -12,7 +12,7 @@ import { SettingsPanel } from './components/SettingsPanel'
 import { GitHubVaultModal } from './components/GitHubVaultModal'
 import { useVaultLoader } from './hooks/useVaultLoader'
 import { useSettings } from './hooks/useSettings'
-import { useNoteActions, generateUntitledName } from './hooks/useNoteActions'
+import { useNoteActions } from './hooks/useNoteActions'
 import { useEditorSave } from './hooks/useEditorSave'
 import { useCommitFlow } from './hooks/useCommitFlow'
 import { useAppKeyboard } from './hooks/useAppKeyboard'
@@ -105,12 +105,7 @@ function App() {
     setToastMessage,
   })
 
-  // Immediate note creation — no dialog, just create and open
-  const handleCreateNoteImmediate = useCallback((type?: string) => {
-    const noteType = type || 'Note'
-    notes.handleCreateNote(generateUntitledName(vault.entries, noteType), noteType)
-    window.dispatchEvent(new CustomEvent('laputa:focus-editor'))
-  }, [vault.entries, notes])
+  const handleCreateNoteImmediate = notes.handleCreateNoteImmediate
 
   const handleSwitchVault = useCallback((path: string) => {
     setVaultPath(path)

@@ -77,7 +77,10 @@ export function useVaultLoader(vaultPath: string) {
   useEffect(() => { loadModifiedFiles() }, [loadModifiedFiles]) // eslint-disable-line react-hooks/set-state-in-effect -- trigger initial load
 
   const addEntry = useCallback((entry: VaultEntry, content: string) => {
-    setEntries((prev) => [entry, ...prev])
+    setEntries((prev) => {
+      if (prev.some(e => e.path === entry.path)) return prev
+      return [entry, ...prev]
+    })
     setAllContent((prev) => ({ ...prev, [entry.path]: content }))
     tracker.trackNew(entry.path)
   }, [tracker])
