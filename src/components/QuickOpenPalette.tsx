@@ -1,8 +1,7 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { VaultEntry } from '../types'
-import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
-import { fuzzyMatch } from '../utils/fuzzyMatch'
+import { NoteSearchList } from './NoteSearchList'
+import { useNoteSearch } from '../hooks/useNoteSearch'
 
 interface QuickOpenPaletteProps {
   open: boolean
@@ -13,63 +12,37 @@ interface QuickOpenPaletteProps {
 
 export function QuickOpenPalette({ open, entries, onSelect, onClose }: QuickOpenPaletteProps) {
   const [query, setQuery] = useState('')
-  const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
-  const listRef = useRef<HTMLDivElement>(null)
+  const { results, selectedIndex, setSelectedIndex, handleKeyDown } = useNoteSearch(entries, query)
 
   useEffect(() => {
     if (open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on dialog open
-      setQuery(''); setSelectedIndex(0)
+      setQuery('')
+      setSelectedIndex(0)
       setTimeout(() => inputRef.current?.focus(), 50)
     }
-  }, [open])
-
-  const results = useMemo(() => {
-    if (!query.trim()) {
-      return [...entries].sort((a, b) => (b.modifiedAt ?? 0) - (a.modifiedAt ?? 0)).slice(0, 20)
-    }
-    return entries
-      .map((entry) => ({ entry, ...fuzzyMatch(query, entry.title) }))
-      .filter((r) => r.match)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 20)
-      .map((r) => r.entry)
-  }, [entries, query])
-
-  useEffect(() => {
-    setSelectedIndex(0) // eslint-disable-line react-hooks/set-state-in-effect -- reset selection on query change
-  }, [query])
-
-  useEffect(() => {
-    if (!listRef.current) return
-    const selected = listRef.current.children[selectedIndex] as HTMLElement | undefined
-    selected?.scrollIntoView({ block: 'nearest' })
-  }, [selectedIndex])
+  }, [open, setSelectedIndex])
 
   useEffect(() => {
     if (!open) return
-    const handleKey = (e: KeyboardEvent) => {
+    const handler = (e: KeyboardEvent) => {
+      handleKeyDown(e)
       if (e.key === 'Escape') {
         e.preventDefault()
         onClose()
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        setSelectedIndex((i) => Math.min(i + 1, results.length - 1))
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        setSelectedIndex((i) => Math.max(i - 1, 0))
       } else if (e.key === 'Enter') {
         e.preventDefault()
-        if (results[selectedIndex]) {
-          onSelect(results[selectedIndex])
+        const selected = results[selectedIndex]
+        if (selected) {
+          onSelect(selected.entry)
           onClose()
         }
       }
     }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [open, results, selectedIndex, onSelect, onClose])
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [open, results, selectedIndex, onSelect, onClose, handleKeyDown])
 
   if (!open) return null
 
@@ -90,35 +63,18 @@ export function QuickOpenPalette({ open, entries, onSelect, onClose }: QuickOpen
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <div className="flex-1 overflow-y-auto py-1" ref={listRef}>
-          {results.length === 0 ? (
-            <div className="px-4 py-4 text-center text-[13px] text-muted-foreground">
-              No matching notes
-            </div>
-          ) : (
-            results.map((entry, i) => (
-              <div
-                key={entry.path}
-                className={cn(
-                  "flex cursor-pointer items-center justify-between px-4 py-2 transition-colors",
-                  i === selectedIndex ? "bg-accent" : "hover:bg-secondary"
-                )}
-                onClick={() => {
-                  onSelect(entry)
-                  onClose()
-                }}
-                onMouseEnter={() => setSelectedIndex(i)}
-              >
-                <span className="text-sm text-foreground">{entry.title}</span>
-                {entry.isA && (
-                  <Badge variant="secondary" className="text-[11px]">
-                    {entry.isA}
-                  </Badge>
-                )}
-              </div>
-            ))
-          )}
-        </div>
+        <NoteSearchList
+          items={results}
+          selectedIndex={selectedIndex}
+          getItemKey={(item) => item.entry.path}
+          onItemClick={(item) => {
+            onSelect(item.entry)
+            onClose()
+          }}
+          onItemHover={(i) => setSelectedIndex(i)}
+          emptyMessage="No matching notes"
+          className="flex-1 overflow-y-auto"
+        />
       </div>
     </div>
   )

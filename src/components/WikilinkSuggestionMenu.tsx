@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { NoteSearchList } from './NoteSearchList'
 import './WikilinkSuggestionMenu.css'
 
 export interface WikilinkSuggestionItem {
@@ -19,41 +19,18 @@ interface WikilinkSuggestionMenuProps {
 }
 
 export function WikilinkSuggestionMenu({ items, selectedIndex, onItemClick }: WikilinkSuggestionMenuProps) {
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (selectedIndex === undefined || !menuRef.current) return
-    const el = menuRef.current.children[selectedIndex] as HTMLElement | undefined
-    el?.scrollIntoView({ block: 'nearest' })
-  }, [selectedIndex])
-
-  if (items.length === 0) {
-    return (
-      <div className="wikilink-menu" ref={menuRef}>
-        <div className="wikilink-menu__empty">No results</div>
-      </div>
-    )
-  }
-
   return (
-    <div className="wikilink-menu" ref={menuRef}>
-      {items.map((item, index) => (
-        <div
-          key={`${item.title}-${item.path ?? index}`}
-          className={`wikilink-menu__item${index === selectedIndex ? ' wikilink-menu__item--selected' : ''}`}
-          onClick={() => {
-            item.onItemClick()
-            onItemClick?.(item)
-          }}
-        >
-          <span className="wikilink-menu__title">{item.title}</span>
-          {item.noteType && (
-            <span className="wikilink-menu__type" style={{ color: item.typeColor }}>
-              {item.noteType}
-            </span>
-          )}
-        </div>
-      ))}
+    <div className="wikilink-menu">
+      <NoteSearchList
+        items={items}
+        selectedIndex={selectedIndex ?? 0}
+        getItemKey={(item, i) => `${item.title}-${item.path ?? i}`}
+        onItemClick={(item) => {
+          item.onItemClick()
+          onItemClick?.(item)
+        }}
+        emptyMessage="No results"
+      />
     </div>
   )
 }

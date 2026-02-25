@@ -1,58 +1,12 @@
-/* Wikilink autocomplete — flat suggestion menu */
+/* Wikilink autocomplete — floating menu container (positioned by BlockNote) */
 .wikilink-menu {
   background: var(--bg-primary, #fff);
   border: 1px solid var(--border, rgba(0, 0, 0, 0.1));
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   max-height: 320px;
-  overflow-y: auto;
-  padding: 4px;
+  overflow: hidden;
   min-width: 260px;
   max-width: 400px;
   z-index: 9999;
-}
-
-.wikilink-menu__empty {
-  padding: 8px 12px;
-  font-size: 13px;
-  color: var(--text-muted, #999);
-}
-
-.wikilink-menu__item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.wikilink-menu__item:hover {
-  background: var(--muted, rgba(0, 0, 0, 0.04));
-}
-
-.wikilink-menu__item--selected {
-  background: var(--accent, rgba(21, 93, 255, 0.08));
-}
-
-.wikilink-menu__title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-primary, #1a1a1a);
-}
-
-.wikilink-menu__type {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 500;
-  opacity: 0.8;
-  max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }

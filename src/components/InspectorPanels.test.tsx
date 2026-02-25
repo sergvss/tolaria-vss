@@ -4,6 +4,9 @@ import { DynamicRelationshipsPanel, BacklinksPanel, ReferencedByPanel, GitHistor
 import type { ReferencedByItem } from './InspectorPanels'
 import type { VaultEntry, GitCommit } from '../types'
 
+// jsdom doesn't implement scrollIntoView
+Element.prototype.scrollIntoView = vi.fn()
+
 const makeEntry = (overrides: Partial<VaultEntry> = {}): VaultEntry => ({
   path: '/vault/note/test.md',
   filename: 'test.md',
