@@ -1,6 +1,28 @@
 use crate::commands::expand_tilde;
 use crate::{git, vault};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+/// Drop the `\\?\` extended-length-path prefix that Windows
+/// `std::fs::canonicalize` adds, except on UNC network paths where stripping
+/// it would change the semantics. Frontend code joins paths via
+/// `${vaultPath}/${filename}`, and the resulting `\\?\C:\vault/file.md`
+/// fails to write because the `\\?\` namespace does not accept `/` as a
+/// separator.
+#[cfg(windows)]
+fn strip_extended_length_prefix(path: PathBuf) -> PathBuf {
+    let lossy = path.to_string_lossy();
+    if let Some(rest) = lossy.strip_prefix(r"\\?\") {
+        if !rest.starts_with(r"UNC\") {
+            return PathBuf::from(rest.to_string());
+        }
+    }
+    path
+}
+
+#[cfg(not(windows))]
+fn strip_extended_length_prefix(path: PathBuf) -> PathBuf {
+    path
+}
 
 #[tauri::command]
 pub fn migrate_is_a_to_type(vault_path: String) -> Result<usize, String> {
@@ -49,9 +71,10 @@ fn ensure_directory_is_missing_or_empty(vault_dir: &Path) -> Result<(), String> 
 }
 
 fn canonical_vault_path_string(vault_dir: &Path) -> String {
-    vault_dir
+    let canonical = vault_dir
         .canonicalize()
-        .unwrap_or_else(|_| vault_dir.to_path_buf())
+        .unwrap_or_else(|_| vault_dir.to_path_buf());
+    strip_extended_length_prefix(canonical)
         .to_string_lossy()
         .to_string()
 }
@@ -89,4 +112,34 @@ pub fn repair_vault(vault_path: String) -> Result<String, String> {
     vault::repair_config_files(&vault_path)?;
     git::ensure_gitignore(&vault_path)?;
     Ok("Vault repaired".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::strip_extended_length_prefix;
+    use std::path::PathBuf;
+
+    #[cfg(windows)]
+    #[test]
+    fn strip_extended_length_prefix_drops_unc_prefix_on_drive_paths() {
+        let stripped =
+            strip_extended_length_prefix(PathBuf::from(r"\\?\C:\Users\name\vault"));
+        assert_eq!(stripped, PathBuf::from(r"C:\Users\name\vault"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn strip_extended_length_prefix_keeps_unc_network_paths_intact() {
+        // `\\?\UNC\server\share` is the extended form of `\\server\share`;
+        // dropping `\\?\` here would corrupt the path into `UNC\server\share`.
+        let stripped =
+            strip_extended_length_prefix(PathBuf::from(r"\\?\UNC\server\share"));
+        assert_eq!(stripped, PathBuf::from(r"\\?\UNC\server\share"));
+    }
+
+    #[test]
+    fn strip_extended_length_prefix_is_a_noop_for_paths_without_prefix() {
+        let path = PathBuf::from("/Users/name/vault");
+        assert_eq!(strip_extended_length_prefix(path.clone()), path);
+    }
 }
