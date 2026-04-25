@@ -48,9 +48,21 @@ if [ -n "$STAGED_TS" ]; then
   npx tsc --noEmit
 fi
 
-# Unit tests
-echo "  → tests..."
-pnpm exec vitest run --silent
+# Unit tests — only if frontend code, frontend deps, or test config changed.
+# Pure docs/Rust/CI commits cannot regress vitest; the pre-push gate still
+# runs the full coverage suite for those, so this only loosens the local
+# fast lane.
+STAGED_FRONTEND=$(
+  git diff --cached --name-only \
+    | grep -E '\.(ts|tsx|js|jsx|mjs|cjs)$|^(package\.json|pnpm-lock\.yaml|vite\.config\..*|vitest\.config\..*)$|^src/test/' \
+    || true
+)
+if [ -n "$STAGED_FRONTEND" ]; then
+  echo "  → tests..."
+  pnpm exec vitest run --silent
+else
+  echo "  → tests skipped (no frontend files staged — pre-push still runs full suite)"
+fi
 
 echo "✅ Pre-commit passed"
 
