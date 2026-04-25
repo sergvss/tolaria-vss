@@ -2,6 +2,22 @@ import '@testing-library/jest-dom/vitest'
 import { afterEach, vi } from 'vitest'
 import { createElement, type ReactNode, type ComponentType } from 'react'
 
+// Pin `Number.prototype.toLocaleString` and `Date.prototype.toLocaleString`
+// to en-US so that locale-sensitive output (thousands separators, date
+// formats) is deterministic across machines. Without this, contributors
+// running tests on a non-English Windows locale see things like
+// "1 200 words" (NBSP separator) where the assertions hard-code "1,200".
+const _numberToLocaleString = Number.prototype.toLocaleString
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+Number.prototype.toLocaleString = function (this: number, locales?: any, options?: any): string {
+  return _numberToLocaleString.call(this, locales ?? 'en-US', options)
+}
+const _dateToLocaleString = Date.prototype.toLocaleString
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+Date.prototype.toLocaleString = function (this: Date, locales?: any, options?: any): string {
+  return _dateToLocaleString.call(this, locales ?? 'en-US', options)
+}
+
 // Stub fetch to prevent jsdom@28 + Node 22 undici incompatibility.
 // jsdom's JSDOMDispatcher passes an onError handler that Node 22's bundled
 // undici rejects with InvalidArgumentError (UND_ERR_INVALID_ARG).
