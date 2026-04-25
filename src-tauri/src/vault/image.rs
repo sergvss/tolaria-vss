@@ -182,6 +182,44 @@ mod tests {
     }
 
     #[test]
+    fn test_save_image_neutralises_windows_reserved_basenames() {
+        // Windows refuses to create files whose base name (without extension)
+        // is one of the legacy device names: CON, PRN, AUX, NUL, COM1-9,
+        // LPT1-9. `prepare_attachment_path` prepends a millisecond timestamp
+        // before the sanitised filename, so the resulting base name (e.g.
+        // `1761600000000-CON`) is no longer reserved and the write succeeds.
+        // This test locks that behaviour in: changing the timestamp prefix
+        // away would silently re-introduce the Windows-only failure mode.
+        use base64::Engine;
+
+        let dir = TempDir::new().unwrap();
+        let vault_path = dir.path().to_str().unwrap();
+        let data = base64::engine::general_purpose::STANDARD.encode(b"x");
+
+        for reserved in [
+            "CON.png", "PRN.jpg", "AUX.gif", "NUL.webp", "COM1.png", "LPT1.png",
+        ] {
+            let saved = save_image(vault_path, reserved, &data)
+                .unwrap_or_else(|err| panic!("save_image failed for {reserved}: {err}"));
+            assert!(
+                std::path::Path::new(&saved).exists(),
+                "expected {saved} to exist on disk",
+            );
+            // Sanity: the saved filename must include both the timestamp
+            // and the original base name.
+            let saved_filename = std::path::Path::new(&saved)
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .to_string();
+            assert!(
+                saved_filename.contains('-'),
+                "expected timestamp-prefix in saved filename {saved_filename}",
+            );
+        }
+    }
+
+    #[test]
     fn test_copy_image_to_vault_accepts_all_extensions() {
         let dir = TempDir::new().unwrap();
         let vault_path = dir.path().to_str().unwrap();
