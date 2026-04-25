@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+use crate::commands::strip_extended_length_prefix_str;
+
 const APP_CONFIG_DIR: &str = "com.tolaria.app";
 const LEGACY_APP_CONFIG_DIR: &str = "com.laputa.app";
 
@@ -53,7 +55,23 @@ fn load_at(path: &PathBuf) -> Result<VaultList, String> {
     }
     let content =
         fs::read_to_string(path).map_err(|e| format!("Failed to read vault list: {}", e))?;
-    serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault list: {}", e))
+    let mut list: VaultList = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse vault list: {}", e))?;
+    // Existing installs may have stored vault paths with the Windows
+    // extended-length-path prefix (`\\?\`) before that prefix was stripped
+    // at the canonicalize boundary. Strip it on read so the frontend never
+    // sees the prefix again, even for vaults persisted by older builds.
+    normalize_vault_list_paths(&mut list);
+    Ok(list)
+}
+
+fn normalize_vault_list_paths(list: &mut VaultList) {
+    for entry in &mut list.vaults {
+        entry.path = strip_extended_length_prefix_str(&entry.path).to_string();
+    }
+    if let Some(active) = list.active_vault.as_mut() {
+        *active = strip_extended_length_prefix_str(active).to_string();
+    }
 }
 
 fn save_at(path: &PathBuf, list: &VaultList) -> Result<(), String> {

@@ -9,6 +9,51 @@ mod vault;
 mod version;
 
 use std::borrow::Cow;
+use std::path::PathBuf;
+
+/// Drop the `\\?\` extended-length-path prefix that Windows
+/// `std::fs::canonicalize` adds, except on UNC network paths
+/// (`\\?\UNC\server\share`) where stripping it would change semantics.
+///
+/// The renderer joins paths via `${vaultPath}/${name}` and the resulting
+/// `\\?\C:\vault/file.md` then fails because the `\\?\` namespace does not
+/// accept `/` as a separator. Anywhere we hand a path back to the frontend
+/// (or persist it for the frontend to consume next launch) we must strip
+/// the prefix before it leaves Rust.
+#[cfg(windows)]
+pub(crate) fn strip_extended_length_prefix(path: PathBuf) -> PathBuf {
+    let lossy = path.to_string_lossy();
+    if let Some(rest) = lossy.strip_prefix(r"\\?\") {
+        if !rest.starts_with(r"UNC\") {
+            return PathBuf::from(rest.to_string());
+        }
+    }
+    path
+}
+
+#[cfg(not(windows))]
+pub(crate) fn strip_extended_length_prefix(path: PathBuf) -> PathBuf {
+    path
+}
+
+/// Strip the same `\\?\` prefix from a string-shaped path. Useful when the
+/// path is already serialized (e.g. read from `vaults.json`) and we need to
+/// normalize it without round-tripping through `PathBuf`.
+#[cfg(windows)]
+pub(crate) fn strip_extended_length_prefix_str(path: &str) -> &str {
+    if let Some(rest) = path.strip_prefix(r"\\?\") {
+        if !rest.starts_with(r"UNC\") {
+            return rest;
+        }
+    }
+    path
+}
+
+#[cfg(not(windows))]
+#[allow(dead_code)]
+pub(crate) fn strip_extended_length_prefix_str(path: &str) -> &str {
+    path
+}
 
 pub use ai::*;
 pub use delete::*;

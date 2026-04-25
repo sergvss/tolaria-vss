@@ -1,28 +1,6 @@
-use crate::commands::expand_tilde;
+use crate::commands::{expand_tilde, strip_extended_length_prefix};
 use crate::{git, vault};
-use std::path::{Path, PathBuf};
-
-/// Drop the `\\?\` extended-length-path prefix that Windows
-/// `std::fs::canonicalize` adds, except on UNC network paths where stripping
-/// it would change the semantics. Frontend code joins paths via
-/// `${vaultPath}/${filename}`, and the resulting `\\?\C:\vault/file.md`
-/// fails to write because the `\\?\` namespace does not accept `/` as a
-/// separator.
-#[cfg(windows)]
-fn strip_extended_length_prefix(path: PathBuf) -> PathBuf {
-    let lossy = path.to_string_lossy();
-    if let Some(rest) = lossy.strip_prefix(r"\\?\") {
-        if !rest.starts_with(r"UNC\") {
-            return PathBuf::from(rest.to_string());
-        }
-    }
-    path
-}
-
-#[cfg(not(windows))]
-fn strip_extended_length_prefix(path: PathBuf) -> PathBuf {
-    path
-}
+use std::path::Path;
 
 #[tauri::command]
 pub fn migrate_is_a_to_type(vault_path: String) -> Result<usize, String> {
@@ -114,9 +92,13 @@ pub fn repair_vault(vault_path: String) -> Result<String, String> {
     Ok("Vault repaired".to_string())
 }
 
+// Tests for `strip_extended_length_prefix` live alongside the helper itself
+// in `crate::commands` (the function moved up so it can be reused by every
+// command that hands a path back to the renderer).
+
 #[cfg(test)]
 mod tests {
-    use super::strip_extended_length_prefix;
+    use crate::commands::strip_extended_length_prefix;
     use std::path::PathBuf;
 
     #[cfg(windows)]
