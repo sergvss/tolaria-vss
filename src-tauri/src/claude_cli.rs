@@ -595,11 +595,6 @@ fn extract_tool_result_text(json: &serde_json::Value) -> Option<String> {
 mod tests {
     use super::*;
 
-    // Windows note: invoking the npm-installed `claude.cmd` wrapper from
-    // `Command::new` spawns a node process that does not return cleanly on
-    // `--version`, so tests that exercise the real binary are skipped on
-    // Windows until that path is investigated as part of full Windows QA.
-    #[cfg(not(windows))]
     #[test]
     fn check_cli_returns_status() {
         let status = check_cli();
@@ -1195,8 +1190,11 @@ mod tests {
     }
 
     // --- run_chat_stream / run_agent_stream error paths ---
-    // Skipped on Windows for the same reason as `check_cli_returns_status` —
-    // the npm-installed `claude.cmd` wrapper hangs on stdin under Command::new.
+    // Skipped on Windows: dev machines that have Claude Code installed via
+    // npm hit the real Claude API on every run (~$0.11/run) because there is
+    // no graceful "not installed" short-circuit once the binary is detected.
+    // Mac/Linux CI typically lacks the CLI, so the call fails fast there.
+    // TODO: replace with a mocked subprocess once that infra exists.
 
     #[cfg(not(windows))]
     #[test]
