@@ -21,9 +21,14 @@ pub(crate) fn find_node() -> Result<PathBuf, String> {
         .output()
         .map_err(|e| format!("Failed to locate node on PATH: {e}"))?;
     if output.status.success() {
-        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if !path.is_empty() {
-            return Ok(PathBuf::from(path));
+        // `where.exe node` on Windows often prints both an extensionless
+        // sh-shim (for git-bash) and the real `.exe`. `first_executable_path_line`
+        // skips PATHEXT-ineligible entries so we always end up with something
+        // `Command::new` can spawn directly.
+        if let Some(path) =
+            crate::platform::first_executable_path_line(&String::from_utf8_lossy(&output.stdout))
+        {
+            return Ok(path);
         }
     }
 
