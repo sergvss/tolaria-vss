@@ -87,6 +87,14 @@ fn vault_path_hash(vault: &Path) -> String {
     format!("{:016x}", hasher.finish())
 }
 
+/// Serialize every test that mutates the process-wide `LAPUTA_CACHE_DIR`
+/// env var. `std::env::set_var` is global, so any module that overrides the
+/// cache directory in tests must hold this lock for the duration of the
+/// scope. Lives at the crate level so `commands::vault` and other test
+/// modules can share it with `vault::cache`'s own tests.
+#[cfg(test)]
+pub(crate) static LAPUTA_CACHE_DIR_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Return the cache directory. Override with `LAPUTA_CACHE_DIR` env var (for tests).
 fn cache_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("LAPUTA_CACHE_DIR") {
@@ -448,12 +456,14 @@ fn write_cache(
 /// Normalize an absolute path to a relative path for comparison with git output.
 fn to_relative_path(abs_path: &str, vault: &Path) -> String {
     let vault_str = vault.to_string_lossy();
-    let with_slash = format!("{}/", vault_str);
-    abs_path
-        .strip_prefix(&with_slash)
-        .or_else(|| abs_path.strip_prefix(vault_str.as_ref()))
-        .unwrap_or(abs_path)
-        .to_string()
+    match abs_path.strip_prefix(vault_str.as_ref()) {
+        // After stripping the vault root, drop the leading separator.
+        // `Path::join` on Windows uses `\`, but git status output and the
+        // rest of the codebase normalize relative paths with `/`, so accept
+        // either separator here for cross-platform comparisons.
+        Some(rest) => rest.trim_start_matches(['/', '\\']).to_string(),
+        None => abs_path.to_string(),
+    }
 }
 
 /// Parse files from a list of relative paths, skipping any that don't exist.
@@ -704,12 +714,9 @@ pub fn scan_vault_cached(vault_path: &Path) -> Result<Vec<VaultEntry>, String> {
 mod tests {
     use super::*;
     use std::io::Write;
-    use std::sync::Mutex;
     use tempfile::TempDir;
 
-    /// Serialize all cache tests that mutate the LAPUTA_CACHE_DIR env var.
-    /// `std::env::set_var` is process-global, so parallel tests would race.
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    use super::LAPUTA_CACHE_DIR_LOCK as ENV_LOCK;
 
     /// Set up a temporary cache directory for test isolation.
     /// Caller MUST hold `ENV_LOCK` for the duration of the test.

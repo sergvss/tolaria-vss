@@ -1,4 +1,6 @@
 mod cache;
+#[cfg(test)]
+pub(crate) use cache::LAPUTA_CACHE_DIR_LOCK;
 mod config_seed;
 mod entry;
 mod file;
