@@ -8,7 +8,11 @@ import {
   waitFor,
 } from '@testing-library/react'
 import { WikilinkChatInput } from './WikilinkChatInput'
-import { UNSUPPORTED_INLINE_PASTE_MESSAGE } from './InlineWikilinkInput'
+import { extractDroppedPathText } from './inlineWikilinkDropText'
+import {
+  UNSUPPORTED_INLINE_PASTE_MESSAGE,
+} from './InlineWikilinkInput'
+import { isInsertBeforeInput } from './inlineWikilinkBeforeInput'
 import type { VaultEntry } from '../types'
 
 const makeEntry = (overrides: Partial<VaultEntry> = {}): VaultEntry => ({
@@ -117,6 +121,24 @@ function fireComposingKeyDown(editor: HTMLElement, key: string) {
   })
 
   fireEvent(editor, event)
+}
+
+function createFileLikeDataTransfer({
+  plainText = '',
+  uriList = '',
+}: {
+  plainText?: string
+  uriList?: string
+}) {
+  return {
+    getData: vi.fn((type: string) => {
+      if (type === 'text/plain') return plainText
+      if (type === 'text/uri-list') return uriList
+      return ''
+    }),
+    files: [new File(['folder'], 'Projects')],
+    items: [{ kind: 'file', type: '' }],
+  }
 }
 
 describe('WikilinkChatInput', () => {
@@ -266,6 +288,43 @@ describe('WikilinkChatInput', () => {
     fireEvent.paste(editor, { clipboardData })
 
     expect(onUnsupportedPaste).toHaveBeenCalledWith(UNSUPPORTED_INLINE_PASTE_MESSAGE)
+
+    updateEditorText('still works')
+    expect(editor.textContent).toContain('still works')
+  })
+
+  it('extracts dropped folder paths from text/plain payloads', () => {
+    expect(extractDroppedPathText(
+      createFileLikeDataTransfer({
+        plainText: '/Users/test/Projects',
+      }) as DataTransfer,
+    )).toBe('/Users/test/Projects')
+  })
+
+  it('falls back to file URLs exposed through uri lists', () => {
+    expect(extractDroppedPathText(
+      createFileLikeDataTransfer({
+        uriList: 'file:///Users/test/My%20Folder',
+      }) as DataTransfer,
+    )).toBe('"/Users/test/My Folder"')
+  })
+
+  it('treats missing inputType as a non-insert beforeinput event', () => {
+    expect(() => isInsertBeforeInput({} as InputEvent)).not.toThrow()
+    expect(isInsertBeforeInput({} as InputEvent)).toBe(false)
+    expect(isInsertBeforeInput({ inputType: 'insertFromPaste' } as InputEvent)).toBe(true)
+  })
+
+  it('ignores beforeinput events without inputType instead of crashing', () => {
+    render(<Controlled />)
+
+    const editor = screen.getByTestId('agent-input')
+    const beforeInputEvent = new Event('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+    })
+
+    expect(() => fireEvent(editor, beforeInputEvent)).not.toThrow()
 
     updateEditorText('still works')
     expect(editor.textContent).toContain('still works')

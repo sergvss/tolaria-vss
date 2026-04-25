@@ -20,6 +20,7 @@ import { ExternalLink } from 'lucide-react'
 import { useDocumentThemeMode } from '../hooks/useDocumentThemeMode'
 import { useEditorTheme } from '../hooks/useTheme'
 import { useImageDrop } from '../hooks/useImageDrop'
+import { useNoteWikilinkDrop } from '../hooks/useNoteWikilinkDrop'
 import { buildTypeEntryMap } from '../utils/typeColors'
 import { preFilterWikilinks, deduplicateByPath, MIN_QUERY_LENGTH } from '../utils/wikilinkSuggestions'
 import { filterPersonMentions, PERSON_MENTION_MIN_QUERY } from '../utils/personMentionSuggestions'
@@ -36,6 +37,7 @@ import {
 } from './tolariaEditorFormatting'
 import { TolariaSideMenu } from './tolariaBlockNoteSideMenu'
 import { useEditorLinkActivation } from './useEditorLinkActivation'
+import { findNearestTextCursorBlock } from './blockNoteCursorTarget'
 
 const TEST_TABLE_MARKDOWN = `| Head 1 | Head 2 | Head 3 |
 | --- | --- | --- |
@@ -241,7 +243,11 @@ function queueTitleHeadingCursorRepair(
     const firstBlock = editor.document[0]
     if (firstBlock?.type !== 'heading') return
 
-    editor.setTextCursorPosition(firstBlock.id, 'end')
+    try {
+      editor.setTextCursorPosition(firstBlock.id, 'end')
+    } catch {
+      return
+    }
     editor.focus()
   })
 
@@ -261,7 +267,14 @@ function useEditorContainerClickHandler(options: {
     if (shouldIgnoreContainerClick(target)) return
     const blocks = editor.document
     if (blocks.length > 0) {
-      editor.setTextCursorPosition(blocks[blocks.length - 1].id, 'end')
+      const targetBlock = findNearestTextCursorBlock(blocks, blocks.length - 1)
+      if (targetBlock) {
+        try {
+          editor.setTextCursorPosition(targetBlock.id, 'end')
+        } catch {
+          // Ignore transient BlockNote selection errors and at least restore focus.
+        }
+      }
     }
     editor.focus()
   }, [editor, editable])
@@ -425,6 +438,7 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
   const typeEntryMap = useMemo(() => buildTypeEntryMap(entries), [entries])
   const baseItems = useMemo(() => buildBaseSuggestionItems(entries), [entries])
   const insertWikilink = useInsertWikilink(editor)
+  useNoteWikilinkDrop({ containerRef, onInsertTarget: insertWikilink, vaultPath })
   const {
     getWikilinkItems,
     getPersonMentionItems,
