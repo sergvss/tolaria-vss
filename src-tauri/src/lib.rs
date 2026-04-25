@@ -96,12 +96,27 @@ fn log_startup_result(label: &str, result: Result<usize, String>) {
     }
 }
 
+/// Resolve the conventional location for an existing user vault named "Laputa".
+/// On Windows we follow the OS convention and look under Documents; on macOS
+/// and Linux the historical default is the home directory root, and we keep
+/// it that way so existing installs migrate cleanly.
+#[cfg(desktop)]
+fn legacy_default_vault_path() -> PathBuf {
+    #[cfg(windows)]
+    {
+        if let Some(documents) = dirs::document_dir() {
+            return documents.join("Laputa");
+        }
+    }
+    dirs::home_dir()
+        .map(|h| h.join("Laputa"))
+        .unwrap_or_default()
+}
+
 /// Run startup housekeeping on the default vault (migrate legacy frontmatter, seed configs).
 #[cfg(desktop)]
 fn run_startup_tasks() {
-    let vault_path = dirs::home_dir()
-        .map(|h| h.join("Laputa"))
-        .unwrap_or_default();
+    let vault_path = legacy_default_vault_path();
     if !vault_path.is_dir() {
         return;
     }
@@ -119,9 +134,7 @@ fn run_startup_tasks() {
 #[cfg(desktop)]
 fn spawn_ws_bridge(app: &mut tauri::App) {
     use tauri::Manager;
-    let vault_path = dirs::home_dir()
-        .map(|h| h.join("Laputa"))
-        .unwrap_or_default();
+    let vault_path = legacy_default_vault_path();
     let vp_str = vault_path.to_string_lossy().to_string();
     match mcp::spawn_ws_bridge(&vp_str) {
         Ok(child) => {
