@@ -279,6 +279,16 @@ fn build_codex_args(request: &AiAgentStreamRequest) -> Result<Vec<String>, Strin
         .ok_or("Invalid MCP server path")?
         .to_string();
 
+    // Codex `-c key=value` parses values as TOML. Embed paths through
+    // `serde_json::to_string` (which produces a TOML-compatible basic
+    // string with `\\` and `"` properly escaped) so that Windows paths
+    // like `C:\Users\name\index.js` do not get reinterpreted as the
+    // escape sequences `\U`, `\n`, etc.
+    let server_path_literal = serde_json::to_string(&mcp_server_path)
+        .map_err(|error| format!("Failed to serialise MCP server path: {error}"))?;
+    let vault_path_literal = serde_json::to_string(&request.vault_path)
+        .map_err(|error| format!("Failed to serialise vault path: {error}"))?;
+
     Ok(vec![
         "exec".into(),
         "--json".into(),
@@ -287,12 +297,9 @@ fn build_codex_args(request: &AiAgentStreamRequest) -> Result<Vec<String>, Strin
         "-c".into(),
         r#"mcp_servers.tolaria.command="node""#.into(),
         "-c".into(),
-        format!(r#"mcp_servers.tolaria.args=["{}"]"#, mcp_server_path),
+        format!("mcp_servers.tolaria.args=[{server_path_literal}]"),
         "-c".into(),
-        format!(
-            r#"mcp_servers.tolaria.env={{VAULT_PATH="{}"}}"#,
-            request.vault_path
-        ),
+        format!("mcp_servers.tolaria.env={{VAULT_PATH={vault_path_literal}}}"),
     ])
 }
 
@@ -453,6 +460,37 @@ mod tests {
             assert!(args.contains(&"--json".to_string()));
             assert!(args.contains(&"-C".to_string()));
         }
+    }
+
+    #[test]
+    fn build_codex_args_escapes_windows_path_separators() {
+        // Codex `-c` values are parsed as TOML. A bare backslash in a basic
+        // string would be interpreted as the start of an escape sequence
+        // (`\U`, `\n`, `\\`, ...), so a Windows-style vault path interpolated
+        // verbatim would either fail to parse or resolve to a different
+        // directory. Verify that our serialisation doubles backslashes the
+        // way TOML basic strings expect.
+        let Ok(args) = build_codex_args(&AiAgentStreamRequest {
+            agent: AiAgentId::Codex,
+            message: "rename".into(),
+            system_prompt: None,
+            vault_path: r"C:\Users\name\my vault".into(),
+        }) else {
+            return;
+        };
+
+        let env_arg = args
+            .iter()
+            .find(|arg| arg.starts_with("mcp_servers.tolaria.env="))
+            .expect("expected env config arg");
+        // Each `\` in the original path must show up as `\\` in the TOML
+        // basic string we hand to Codex.
+        assert!(
+            env_arg.contains(r#"VAULT_PATH="C:\\Users\\name\\my vault""#),
+            "expected escaped vault path in env arg, was: {env_arg}",
+        );
+        // Spaces must survive intact — they are not special in TOML strings.
+        assert!(env_arg.contains("my vault"));
     }
 
     #[test]
