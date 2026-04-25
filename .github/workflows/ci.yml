@@ -11,9 +11,18 @@ permissions:
   contents: read
   id-token: write
 
+# Cancel any superseded run on the same ref so two pushes in quick
+# succession do not race for runners or both upload coverage to Codecov.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   # Bump this when Tauri/Rust target artifacts capture stale absolute paths.
   RUST_TARGET_CACHE_VERSION: v2026-04-14-tolaria
+  # Husky `prepare` script tries to install git hooks on every CI runner,
+  # which is unnecessary in headless CI and intermittently fails on Windows.
+  HUSKY: 0
 
 jobs:
   test:
@@ -230,7 +239,10 @@ jobs:
 
   windows-build:
     name: Windows build verification
-    runs-on: windows-latest
+    # Pin the runner image so MSVC/SDK upgrades that ship with `windows-latest`
+    # don't break the build without warning. Match the macOS-15 / ubuntu-22.04
+    # pattern used by the other jobs in this workflow.
+    runs-on: windows-2022
 
     steps:
       - uses: actions/checkout@v4
@@ -269,11 +281,18 @@ jobs:
       - name: Frontend build
         run: pnpm build
 
+      # Frontend tests catch Windows-specific JS regressions (path resolution,
+      # locale-sensitive output, jsdom timing). The macOS job already runs the
+      # full suite + coverage; here we just want to confirm the same suite
+      # passes on a Windows runner.
+      - name: Run frontend tests
+        run: pnpm test
+
       # Catches Windows-specific Rust regressions: path separators, env-var
       # races, ExitStatus shape, where.exe quirks, and the binary-detection
       # logic that PATH-style upstream code does not exercise on macOS/Linux.
       - name: Run Rust tests
-        run: cargo test --manifest-path=src-tauri/Cargo.toml --lib
+        run: cargo test --manifest-path=src-tauri/Cargo.toml
 
       - name: Cargo check
         run: cargo check --manifest-path=src-tauri/Cargo.toml
