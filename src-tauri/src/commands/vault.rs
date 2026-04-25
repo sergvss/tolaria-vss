@@ -208,7 +208,9 @@ mod tests {
     fn test_reload_vault_invalidates_cache_and_rescans() {
         // Hold the shared cache-dir lock so we don't race against
         // vault::cache tests that also mutate LAPUTA_CACHE_DIR.
-        let _cache_env_guard = crate::vault::LAPUTA_CACHE_DIR_LOCK.lock().unwrap();
+        let _cache_env_guard = crate::vault::LAPUTA_CACHE_DIR_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
 
         let dir = tempfile::TempDir::new().unwrap();
         let vault_path = dir.path();

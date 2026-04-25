@@ -1148,7 +1148,9 @@ mod tests {
 
     #[test]
     fn find_claude_binary_in_env_returns_path_for_existing_file() {
-        let _guard = CLAUDE_BIN_ENV_LOCK.lock().unwrap();
+        let _guard = CLAUDE_BIN_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         let fake = tmp.path().join("claude-fake");
         std::fs::write(&fake, b"stub").unwrap();
@@ -1162,7 +1164,9 @@ mod tests {
 
     #[test]
     fn find_claude_binary_in_env_returns_none_when_unset() {
-        let _guard = CLAUDE_BIN_ENV_LOCK.lock().unwrap();
+        let _guard = CLAUDE_BIN_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         std::env::remove_var("CLAUDE_BIN");
 
         assert!(find_claude_binary_in_env().is_none());
@@ -1170,7 +1174,9 @@ mod tests {
 
     #[test]
     fn find_claude_binary_in_env_returns_none_when_path_missing() {
-        let _guard = CLAUDE_BIN_ENV_LOCK.lock().unwrap();
+        let _guard = CLAUDE_BIN_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         std::env::set_var("CLAUDE_BIN", "/this/path/definitely/does/not/exist/claude");
         let result = find_claude_binary_in_env();
         std::env::remove_var("CLAUDE_BIN");

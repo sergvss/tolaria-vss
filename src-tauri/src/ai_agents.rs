@@ -553,7 +553,9 @@ mod tests {
 
     #[test]
     fn find_codex_binary_in_env_returns_path_for_existing_file() {
-        let _guard = CODEX_BIN_ENV_LOCK.lock().unwrap();
+        let _guard = CODEX_BIN_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         let fake = tmp.path().join("codex-fake");
         std::fs::write(&fake, b"stub").unwrap();
@@ -567,7 +569,9 @@ mod tests {
 
     #[test]
     fn find_codex_binary_in_env_returns_none_when_unset() {
-        let _guard = CODEX_BIN_ENV_LOCK.lock().unwrap();
+        let _guard = CODEX_BIN_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         std::env::remove_var("CODEX_BIN");
 
         assert!(find_codex_binary_in_env().is_none());
@@ -575,7 +579,9 @@ mod tests {
 
     #[test]
     fn find_codex_binary_in_env_returns_none_when_path_missing() {
-        let _guard = CODEX_BIN_ENV_LOCK.lock().unwrap();
+        let _guard = CODEX_BIN_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         std::env::set_var("CODEX_BIN", "/this/path/definitely/does/not/exist/codex");
         let result = find_codex_binary_in_env();
         std::env::remove_var("CODEX_BIN");

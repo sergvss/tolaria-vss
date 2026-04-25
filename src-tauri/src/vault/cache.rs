@@ -763,7 +763,9 @@ mod tests {
     /// Common setup: acquire env lock, create temp cache dir + git-initialised vault.
     /// Returns (lock_guard, cache_tmpdir, vault_tmpdir) — keep all alive for the test.
     fn setup_git_vault() -> (std::sync::MutexGuard<'static, ()>, TempDir, TempDir) {
-        let lock = ENV_LOCK.lock().unwrap();
+        let lock = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let cache_tmp = TempDir::new().unwrap();
         set_test_cache_dir(cache_tmp.path());
         let vault_tmp = TempDir::new().unwrap();
@@ -786,7 +788,9 @@ mod tests {
 
     #[test]
     fn test_cache_path_is_outside_vault() {
-        let _lock = ENV_LOCK.lock().unwrap();
+        let _lock = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let cache_dir = TempDir::new().unwrap();
         set_test_cache_dir(cache_dir.path());
 
@@ -825,7 +829,9 @@ mod tests {
 
     #[test]
     fn test_cache_write_no_tmp_file_left() {
-        let _lock = ENV_LOCK.lock().unwrap();
+        let _lock = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let cache_dir = TempDir::new().unwrap();
         set_test_cache_dir(cache_dir.path());
 
@@ -890,7 +896,9 @@ mod tests {
 
     #[test]
     fn test_scan_vault_cached_no_git() {
-        let _lock = ENV_LOCK.lock().unwrap();
+        let _lock = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let cache_dir = TempDir::new().unwrap();
         set_test_cache_dir(cache_dir.path());
 
