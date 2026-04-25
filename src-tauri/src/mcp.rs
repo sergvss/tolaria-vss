@@ -35,6 +35,13 @@ pub(crate) fn find_node() -> Result<PathBuf, String> {
 }
 
 fn fallback_node_path() -> Option<PathBuf> {
+    fallback_node_candidates()
+        .into_iter()
+        .find(|path| path.is_file())
+}
+
+#[cfg(not(windows))]
+fn fallback_node_candidates() -> Vec<PathBuf> {
     let mut candidates = vec![
         PathBuf::from("/opt/homebrew/bin/node"),
         PathBuf::from("/usr/local/bin/node"),
@@ -58,7 +65,35 @@ fn fallback_node_path() -> Option<PathBuf> {
         }
     }
 
-    candidates.into_iter().find(|path| path.is_file())
+    candidates
+}
+
+#[cfg(windows)]
+fn fallback_node_candidates() -> Vec<PathBuf> {
+    let mut candidates = vec![
+        PathBuf::from(r"C:\Program Files\nodejs\node.exe"),
+        PathBuf::from(r"C:\Program Files (x86)\nodejs\node.exe"),
+    ];
+
+    if let Some(home) = dirs::home_dir() {
+        candidates.push(home.join("scoop").join("apps").join("nodejs").join("current").join("node.exe"));
+        candidates.push(home.join("AppData").join("Local").join("Programs").join("Node.js").join("node.exe"));
+        candidates.push(home.join(".volta").join("bin").join("node.exe"));
+
+        // nvm-windows stores versions under %APPDATA%\nvm\<version>\node.exe.
+        let nvm_dir = home.join("AppData").join("Roaming").join("nvm");
+        if let Ok(entries) = std::fs::read_dir(nvm_dir) {
+            let mut versions = entries
+                .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+                .filter(|path| path.is_dir())
+                .collect::<Vec<_>>();
+            versions.sort();
+            versions.reverse();
+            candidates.extend(versions.into_iter().map(|version| version.join("node.exe")));
+        }
+    }
+
+    candidates
 }
 
 /// Resolve the path to `mcp-server/`.
@@ -783,5 +818,31 @@ mod tests {
         assert_eq!(json, r#""installed""#);
         let json = serde_json::to_string(&McpStatus::NotInstalled).unwrap();
         assert_eq!(json, r#""not_installed""#);
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn fallback_node_candidates_lists_unix_install_locations() {
+        let candidates = fallback_node_candidates();
+        assert!(candidates.contains(&PathBuf::from("/opt/homebrew/bin/node")));
+        assert!(candidates.contains(&PathBuf::from("/usr/local/bin/node")));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn fallback_node_candidates_lists_windows_install_locations() {
+        let candidates = fallback_node_candidates();
+        assert!(candidates.contains(&PathBuf::from(r"C:\Program Files\nodejs\node.exe")));
+        assert!(candidates.contains(&PathBuf::from(
+            r"C:\Program Files (x86)\nodejs\node.exe"
+        )));
+
+        let has_path_ending = |suffix: &str| {
+            candidates
+                .iter()
+                .any(|candidate| candidate.to_string_lossy().ends_with(suffix))
+        };
+        assert!(has_path_ending(r"scoop\apps\nodejs\current\node.exe"));
+        assert!(has_path_ending(r"AppData\Local\Programs\Node.js\node.exe"));
     }
 }

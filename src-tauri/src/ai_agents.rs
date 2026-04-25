@@ -155,23 +155,9 @@ fn find_codex_binary_on_path() -> Result<Option<PathBuf>, String> {
         return Ok(None);
     }
 
-    Ok(first_existing_path_line(&String::from_utf8_lossy(
-        &output.stdout,
-    )))
-}
-
-/// Pick the first non-empty line of `which`/`where.exe` stdout that points at
-/// an existing file. `where.exe` may print several candidates separated by
-/// newlines; the first hit is the one the user's shell would resolve.
-fn first_existing_path_line(stdout: &str) -> Option<PathBuf> {
-    stdout.lines().find_map(|line| {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            return None;
-        }
-        let candidate = PathBuf::from(trimmed);
-        candidate.is_file().then_some(candidate)
-    })
+    Ok(crate::platform::first_executable_path_line(
+        &String::from_utf8_lossy(&output.stdout),
+    ))
 }
 
 fn codex_binary_candidates() -> Vec<PathBuf> {
@@ -597,23 +583,4 @@ mod tests {
         assert!(result.is_none());
     }
 
-    #[test]
-    fn first_existing_path_line_picks_first_real_file() {
-        let tmp = tempfile::tempdir().unwrap();
-        let real = tmp.path().join("real.exe");
-        std::fs::write(&real, b"stub").unwrap();
-        let fake = tmp.path().join("missing.exe");
-
-        let stdout = format!("{}\n{}\n", fake.display(), real.display());
-        // First line points at a missing file; resolver should fall through to
-        // the second, which exists. Mirrors `where.exe` returning shadowed
-        // entries on Windows.
-        assert_eq!(first_existing_path_line(&stdout), Some(real));
-    }
-
-    #[test]
-    fn first_existing_path_line_returns_none_for_blank_stdout() {
-        assert!(first_existing_path_line("").is_none());
-        assert!(first_existing_path_line("   \n\t\n").is_none());
-    }
 }
