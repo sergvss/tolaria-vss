@@ -227,3 +227,56 @@ jobs:
 
       - name: Clippy
         run: cargo clippy --manifest-path=src-tauri/Cargo.toml -- -D warnings
+
+  windows-build:
+    name: Windows build verification
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          components: clippy
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ env.RUST_TARGET_CACHE_VERSION }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ env.RUST_TARGET_CACHE_VERSION }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Frontend build
+        run: pnpm build
+
+      # Catches Windows-specific Rust regressions: path separators, env-var
+      # races, ExitStatus shape, where.exe quirks, and the binary-detection
+      # logic that PATH-style upstream code does not exercise on macOS/Linux.
+      - name: Run Rust tests
+        run: cargo test --manifest-path=src-tauri/Cargo.toml --lib
+
+      - name: Cargo check
+        run: cargo check --manifest-path=src-tauri/Cargo.toml
+
+      - name: Clippy
+        run: cargo clippy --manifest-path=src-tauri/Cargo.toml -- -D warnings
