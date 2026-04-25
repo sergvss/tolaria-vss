@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::io::BufRead;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -122,6 +122,10 @@ fn version_for_binary(binary: &PathBuf) -> Option<String> {
 }
 
 fn find_codex_binary() -> Result<PathBuf, String> {
+    if let Some(binary) = find_codex_binary_in_env() {
+        return Ok(binary);
+    }
+
     if let Some(binary) = find_codex_binary_on_path()? {
         return Ok(binary);
     }
@@ -133,30 +137,76 @@ fn find_codex_binary() -> Result<PathBuf, String> {
     Err("Codex CLI not found. Install it: https://developers.openai.com/codex/cli".into())
 }
 
-fn find_codex_binary_on_path() -> Result<Option<PathBuf>, String> {
-    let output = Command::new("which")
-        .arg("codex")
-        .output()
-        .map_err(|error| format!("Failed to run `which codex`: {error}"))?;
+fn find_codex_binary_in_env() -> Option<PathBuf> {
+    let value = std::env::var_os("CODEX_BIN")?;
+    if value.is_empty() {
+        return None;
+    }
+    let path = PathBuf::from(value);
+    path.is_file().then_some(path)
+}
 
-    if output.status.success() {
-        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if !path.is_empty() {
-            return Ok(Some(PathBuf::from(path)));
-        }
+fn find_codex_binary_on_path() -> Result<Option<PathBuf>, String> {
+    let output = crate::platform::which_command("codex")
+        .output()
+        .map_err(|error| format!("Failed to locate codex on PATH: {error}"))?;
+
+    if !output.status.success() {
+        return Ok(None);
     }
 
-    Ok(None)
+    Ok(first_existing_path_line(&String::from_utf8_lossy(
+        &output.stdout,
+    )))
+}
+
+/// Pick the first non-empty line of `which`/`where.exe` stdout that points at
+/// an existing file. `where.exe` may print several candidates separated by
+/// newlines; the first hit is the one the user's shell would resolve.
+fn first_existing_path_line(stdout: &str) -> Option<PathBuf> {
+    stdout.lines().find_map(|line| {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        let candidate = PathBuf::from(trimmed);
+        candidate.is_file().then_some(candidate)
+    })
 }
 
 fn codex_binary_candidates() -> Vec<PathBuf> {
-    let home = dirs::home_dir().unwrap_or_default();
+    dirs::home_dir()
+        .map(|home| codex_binary_candidates_for_home(&home))
+        .unwrap_or_default()
+}
+
+#[cfg(not(windows))]
+fn codex_binary_candidates_for_home(home: &Path) -> Vec<PathBuf> {
     vec![
         home.join(".local/bin/codex"),
         home.join(".npm/bin/codex"),
         PathBuf::from("/usr/local/bin/codex"),
         PathBuf::from("/opt/homebrew/bin/codex"),
         PathBuf::from("/Applications/Codex.app/Contents/Resources/codex"),
+    ]
+}
+
+#[cfg(windows)]
+fn codex_binary_candidates_for_home(home: &Path) -> Vec<PathBuf> {
+    vec![
+        home.join(".local").join("bin").join("codex.exe"),
+        home.join("AppData")
+            .join("Roaming")
+            .join("npm")
+            .join("codex.cmd"),
+        home.join("AppData")
+            .join("Roaming")
+            .join("npm")
+            .join("codex.exe"),
+        home.join(".npm").join("bin").join("codex.cmd"),
+        home.join("scoop").join("shims").join("codex.exe"),
+        home.join("scoop").join("shims").join("codex.cmd"),
+        PathBuf::from(r"C:\Program Files\Codex\codex.exe"),
     ]
 }
 
@@ -479,5 +529,91 @@ mod tests {
         let mapped = map_claude_event(crate::claude_cli::ClaudeStreamEvent::Done);
 
         assert!(matches!(mapped, Some(AiAgentStreamEvent::Done)));
+    }
+
+    /// Serialize tests that mutate the process-wide `CODEX_BIN` env var.
+    /// `std::env::set_var` is global, so parallel tests would race.
+    static CODEX_BIN_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[cfg(not(windows))]
+    #[test]
+    fn codex_binary_candidates_for_home_lists_unix_install_locations() {
+        let home = PathBuf::from("/Users/tester");
+        let candidates = codex_binary_candidates_for_home(&home);
+
+        assert!(candidates.contains(&home.join(".local/bin/codex")));
+        assert!(candidates.contains(&home.join(".npm/bin/codex")));
+        assert!(candidates.contains(&PathBuf::from("/usr/local/bin/codex")));
+        assert!(candidates.contains(&PathBuf::from("/opt/homebrew/bin/codex")));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn codex_binary_candidates_for_home_lists_windows_install_locations() {
+        let home = PathBuf::from(r"C:\Users\tester");
+        let candidates = codex_binary_candidates_for_home(&home);
+
+        let has_path_ending = |suffix: &str| {
+            candidates
+                .iter()
+                .any(|candidate| candidate.to_string_lossy().ends_with(suffix))
+        };
+
+        assert!(has_path_ending(r"AppData\Roaming\npm\codex.cmd"));
+        assert!(has_path_ending(r"AppData\Roaming\npm\codex.exe"));
+        assert!(has_path_ending(r"scoop\shims\codex.exe"));
+        assert!(candidates.contains(&PathBuf::from(r"C:\Program Files\Codex\codex.exe")));
+    }
+
+    #[test]
+    fn find_codex_binary_in_env_returns_path_for_existing_file() {
+        let _guard = CODEX_BIN_ENV_LOCK.lock().unwrap();
+        let tmp = tempfile::tempdir().unwrap();
+        let fake = tmp.path().join("codex-fake");
+        std::fs::write(&fake, b"stub").unwrap();
+
+        std::env::set_var("CODEX_BIN", fake.as_os_str());
+        let result = find_codex_binary_in_env();
+        std::env::remove_var("CODEX_BIN");
+
+        assert_eq!(result, Some(fake));
+    }
+
+    #[test]
+    fn find_codex_binary_in_env_returns_none_when_unset() {
+        let _guard = CODEX_BIN_ENV_LOCK.lock().unwrap();
+        std::env::remove_var("CODEX_BIN");
+
+        assert!(find_codex_binary_in_env().is_none());
+    }
+
+    #[test]
+    fn find_codex_binary_in_env_returns_none_when_path_missing() {
+        let _guard = CODEX_BIN_ENV_LOCK.lock().unwrap();
+        std::env::set_var("CODEX_BIN", "/this/path/definitely/does/not/exist/codex");
+        let result = find_codex_binary_in_env();
+        std::env::remove_var("CODEX_BIN");
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn first_existing_path_line_picks_first_real_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let real = tmp.path().join("real.exe");
+        std::fs::write(&real, b"stub").unwrap();
+        let fake = tmp.path().join("missing.exe");
+
+        let stdout = format!("{}\n{}\n", fake.display(), real.display());
+        // First line points at a missing file; resolver should fall through to
+        // the second, which exists. Mirrors `where.exe` returning shadowed
+        // entries on Windows.
+        assert_eq!(first_existing_path_line(&stdout), Some(real));
+    }
+
+    #[test]
+    fn first_existing_path_line_returns_none_for_blank_stdout() {
+        assert!(first_existing_path_line("").is_none());
+        assert!(first_existing_path_line("   \n\t\n").is_none());
     }
 }
