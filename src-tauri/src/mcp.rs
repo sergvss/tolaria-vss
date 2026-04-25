@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command};
+use std::process::Child;
 
 const MCP_SERVER_NAME: &str = "tolaria";
 const LEGACY_MCP_SERVER_NAME: &str = "laputa";
@@ -17,7 +17,7 @@ pub enum McpStatus {
 
 /// Find the `node` binary path at runtime.
 pub(crate) fn find_node() -> Result<PathBuf, String> {
-    let output = node_lookup_command()
+    let output = crate::platform::which_command("node")
         .output()
         .map_err(|e| format!("Failed to locate node on PATH: {e}"))?;
     if output.status.success() {
@@ -32,16 +32,6 @@ pub(crate) fn find_node() -> Result<PathBuf, String> {
     }
 
     Err("node not found in PATH or common install locations".into())
-}
-
-fn node_lookup_command() -> Command {
-    #[cfg(windows)]
-    let mut command = crate::hidden_command("where.exe");
-    #[cfg(not(windows))]
-    let mut command = crate::hidden_command("which");
-
-    command.arg("node");
-    command
 }
 
 fn fallback_node_path() -> Option<PathBuf> {

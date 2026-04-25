@@ -7,6 +7,7 @@ pub mod git;
 pub mod mcp;
 #[cfg(desktop)]
 pub mod menu;
+pub mod platform;
 pub mod search;
 pub mod settings;
 pub mod telemetry;
