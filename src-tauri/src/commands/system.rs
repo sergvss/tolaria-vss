@@ -226,6 +226,18 @@ pub fn update_current_window_min_size(
         return Ok(());
     }
 
+    // Skip the grow path when the window is already maximized. On Windows
+    // calling `set_size` on a maximized window first unmaximizes it and then
+    // resizes — if the requested size is close to the monitor's working area
+    // (which it often is once a pane like the inspector is visible), tao
+    // re-snaps it back to maximized, and the user sees the panel toggle
+    // appear to "snap to fullscreen". The min-size constraint above is
+    // already in place, so the window will respect it the next time the
+    // user resizes manually.
+    if window.is_maximized().unwrap_or(false) {
+        return Ok(());
+    }
+
     let scale_factor = window.scale_factor().map_err(|e| e.to_string())?;
     let current_size = window
         .inner_size()
