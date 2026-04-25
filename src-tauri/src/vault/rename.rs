@@ -1053,7 +1053,15 @@ mod tests {
         })
         .expect("move should succeed");
 
-        assert!(result.new_path.ends_with("areas/weekly-review.md"));
+        // `new_path` is an absolute path with platform-native separators.
+        // Wikilinks (the next assertion) stay forward-slash on every OS.
+        let expected_suffix = std::path::Path::new("areas").join("weekly-review.md");
+        assert!(
+            result.new_path.ends_with(&expected_suffix.to_string_lossy().to_string()),
+            "expected new_path to end with {} but was {}",
+            expected_suffix.display(),
+            result.new_path,
+        );
         assert!(!vault.join("projects/weekly-review.md").exists());
         assert!(vault.join("areas/weekly-review.md").exists());
         assert_eq!(

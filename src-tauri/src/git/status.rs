@@ -373,10 +373,14 @@ mod tests {
         assert_eq!(modified[0].status, "untracked");
         assert_eq!(modified[0].relative_path, "note/brand-new.md");
         assert_eq!(modified[0].added_lines, Some(1));
+        // `path` joins the vault tempdir (Windows: `\`) with git's relative
+        // output (`/`), so the raw string can mix separators. `Path::ends_with`
+        // compares by component and accepts either separator on Windows.
+        let path = std::path::Path::new(&modified[0].path);
         assert!(
-            modified[0].path.ends_with("/note/brand-new.md"),
+            path.ends_with("note/brand-new.md"),
             "Full path should end with relative path: {}",
-            modified[0].path
+            modified[0].path,
         );
     }
 

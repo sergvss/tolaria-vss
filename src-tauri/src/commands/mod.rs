@@ -60,7 +60,10 @@ mod tests {
     fn expand_tilde_with_subpath() {
         let home = dirs::home_dir().unwrap();
         let result = expand_tilde("~/Documents/vault");
-        assert_eq!(result, format!("{}/Documents/vault", home.display()));
+        // Production code uses `Path::join`, which builds platform-native
+        // separators. Mirror that here so the assertion is portable.
+        let expected = home.join("Documents/vault").to_string_lossy().into_owned();
+        assert_eq!(result.as_ref(), expected.as_str());
     }
 
     #[test]
