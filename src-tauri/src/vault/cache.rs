@@ -16,7 +16,7 @@ use super::{is_md_file, parse_md_file, parse_non_md_file, scan_vault, VaultEntry
 /// Bump this when VaultEntry fields change to force a full rescan.
 /// v12: fix gray_matter YAML sanitization (unquoted colons / hash comments in list items)
 /// v13: preserve plain square brackets in parsed markdown H1 titles
-const CACHE_VERSION: u32 = 13;
+const CACHE_VERSION: u32 = 14;
 const CACHE_WRITE_LOCK_STALE_SECS: u64 = 30;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -455,12 +455,18 @@ fn write_cache(
 
 /// Normalize an absolute path to a relative path for comparison with git output.
 fn to_relative_path(abs_path: &str, vault: &Path) -> String {
-    let vault_str = vault.to_string_lossy();
-    match abs_path.strip_prefix(vault_str.as_ref()) {
-        // After stripping the vault root, drop the leading separator.
-        // `Path::join` on Windows uses `\`, but git status output and the
-        // rest of the codebase normalize relative paths with `/`, so accept
-        // either separator here for cross-platform comparisons.
+    // `abs_path` is already forward-slash normalized for new vault entries
+    // (see `vault::normalize_vault_path`), but legacy cache files written
+    // before the normalization may still contain backslashes. The vault
+    // root from `Path::to_string_lossy` uses native separators on Windows.
+    // Try the normalized prefix first, then the native one as a fallback,
+    // so cache files survive the upgrade either way.
+    let vault_native = vault.to_string_lossy();
+    let vault_normalized = vault_native.replace('\\', "/");
+    let stripped = abs_path
+        .strip_prefix(vault_normalized.as_str())
+        .or_else(|| abs_path.strip_prefix(vault_native.as_ref()));
+    match stripped {
         Some(rest) => rest.trim_start_matches(['/', '\\']).to_string(),
         None => abs_path.to_string(),
     }
@@ -564,7 +570,7 @@ fn finalize_and_cache(
         vault,
         &VaultCache {
             version: CACHE_VERSION,
-            vault_path: vault.to_string_lossy().to_string(),
+            vault_path: super::normalize_vault_path(vault),
             commit_hash: hash,
             entries: entries.clone(),
         },
@@ -628,9 +634,12 @@ fn update_different_commit(
 }
 
 fn cache_requires_full_rescan(cache: &VaultCache, vault_path: &Path) -> bool {
-    let current_vault_str = vault_path.to_string_lossy();
+    // Cache files store `vault_path` in forward-slash normalized form (see
+    // `vault::normalize_vault_path`); compare against the same shape so a
+    // Windows native-separator path does not look like a different vault.
+    let current_vault_str = super::normalize_vault_path(vault_path);
     cache.version != CACHE_VERSION
-        || (!cache.vault_path.is_empty() && cache.vault_path != current_vault_str.as_ref())
+        || (!cache.vault_path.is_empty() && cache.vault_path != current_vault_str)
 }
 
 fn scan_and_cache_full(
@@ -825,7 +834,7 @@ mod tests {
 
         let cache = VaultCache {
             version: CACHE_VERSION,
-            vault_path: vault.to_string_lossy().to_string(),
+            vault_path: super::super::normalize_vault_path(vault),
             commit_hash: "abc123".to_string(),
             entries: vec![],
         };
@@ -859,7 +868,7 @@ mod tests {
         let legacy = legacy_cache_path(vault);
         let cache = VaultCache {
             version: CACHE_VERSION,
-            vault_path: vault.to_string_lossy().to_string(),
+            vault_path: super::super::normalize_vault_path(vault),
             commit_hash: "old123".to_string(),
             entries: vec![],
         };
@@ -928,21 +937,26 @@ mod tests {
         create_test_file(vault, "note.md", "# Note\n\nContent.");
         git_add_commit(vault, "init");
 
-        // Build cache normally
+        // Build cache normally. Paths in `VaultEntry` are forward-slash
+        // normalized (see `vault::normalize_vault_path`), so compare against
+        // the same normalized vault root on Windows.
+        let normalized_vault = vault.to_string_lossy().replace('\\', "/");
         let entries = scan_vault_cached(vault).unwrap();
         assert_eq!(entries.len(), 1);
         assert!(
-            entries[0]
-                .path
-                .starts_with(vault.to_string_lossy().as_ref()),
-            "Entry path should start with vault path"
+            entries[0].path.starts_with(normalized_vault.as_str()),
+            "Entry path should start with vault path; got: {} (vault: {})",
+            entries[0].path,
+            normalized_vault,
         );
 
-        // Tamper with cache to simulate a clone from a different machine
+        // Tamper with cache to simulate a clone from a different machine.
+        // The on-disk cache JSON also stores normalized paths, so substitute
+        // accordingly.
         let cache_file = cache_path(vault);
         let cache_data = fs::read_to_string(&cache_file).unwrap();
         let tampered = cache_data.replace(
-            vault.to_string_lossy().as_ref(),
+            normalized_vault.as_str(),
             "/Users/other-machine/OtherVault",
         );
         fs::write(&cache_file, tampered).unwrap();
@@ -951,9 +965,7 @@ mod tests {
         let entries2 = scan_vault_cached(vault).unwrap();
         assert_eq!(entries2.len(), 1);
         assert!(
-            entries2[0]
-                .path
-                .starts_with(vault.to_string_lossy().as_ref()),
+            entries2[0].path.starts_with(normalized_vault.as_str()),
             "After stale-cache invalidation, paths should use the current vault path, got: {}",
             entries2[0].path
         );
@@ -1285,7 +1297,7 @@ mod tests {
         };
         let stale_cache = VaultCache {
             version: CACHE_VERSION - 1, // old version
-            vault_path: vault.to_string_lossy().to_string(),
+            vault_path: super::super::normalize_vault_path(vault),
             commit_hash: hash,
             entries: vec![stale_entry],
         };
@@ -1373,7 +1385,7 @@ mod tests {
 
         let original = VaultCache {
             version: CACHE_VERSION,
-            vault_path: vault.to_string_lossy().to_string(),
+            vault_path: super::super::normalize_vault_path(vault),
             commit_hash: "original".to_string(),
             entries: vec![],
         };
@@ -1415,7 +1427,7 @@ mod tests {
 
         let cache = VaultCache {
             version: CACHE_VERSION,
-            vault_path: vault.to_string_lossy().to_string(),
+            vault_path: super::super::normalize_vault_path(vault),
             commit_hash: "busy".to_string(),
             entries: vec![],
         };

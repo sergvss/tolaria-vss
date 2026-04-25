@@ -226,7 +226,7 @@ fn persist_staged_note(staged: NamedTempFile, target_path: &Path) -> Result<(), 
 }
 
 fn finalize_rename(vault: &Path, old_targets: &[&str], new_file: &Path) -> RenameResult {
-    let new_path = new_file.to_string_lossy().to_string();
+    let new_path = super::normalize_vault_path(new_file);
     let new_path_stem = to_path_stem(new_file, vault);
     let summary = update_wikilinks_in_vault(vault, old_targets, &new_path_stem, new_file);
     RenameResult {
@@ -254,7 +254,7 @@ struct LoadedNote {
 
 fn unchanged_result(path: &Path) -> RenameResult {
     RenameResult {
-        new_path: path.to_string_lossy().to_string(),
+        new_path: super::normalize_vault_path(path),
         updated_files: 0,
         failed_updates: 0,
     }
@@ -740,7 +740,9 @@ mod tests {
                 },
             );
 
-            assert_eq!(result.new_path, old_path.to_str().unwrap());
+            // `new_path` is forward-slash normalized regardless of OS.
+            let expected_new_path = old_path.to_string_lossy().replace('\\', "/");
+            assert_eq!(result.new_path, expected_new_path);
             assert_eq!(result.updated_files, 0);
             assert_eq!(result.failed_updates, 0);
         }
@@ -1053,13 +1055,17 @@ mod tests {
         })
         .expect("move should succeed");
 
-        // `new_path` is an absolute path with platform-native separators.
-        // Wikilinks (the next assertion) stay forward-slash on every OS.
-        let expected_suffix = std::path::Path::new("areas").join("weekly-review.md");
+        // `new_path` is forward-slash normalized on every OS so the frontend
+        // wikilink resolver and multi-window matching can compare it
+        // byte-for-byte against vault-relative wikilink targets.
         assert!(
-            result.new_path.ends_with(&expected_suffix.to_string_lossy().to_string()),
-            "expected new_path to end with {} but was {}",
-            expected_suffix.display(),
+            result.new_path.ends_with("areas/weekly-review.md"),
+            "expected new_path to end with areas/weekly-review.md, was {}",
+            result.new_path,
+        );
+        assert!(
+            !result.new_path.contains('\\'),
+            "new_path must not contain backslashes, was {}",
             result.new_path,
         );
         assert!(!vault.join("projects/weekly-review.md").exists());
@@ -1084,7 +1090,9 @@ mod tests {
         })
         .expect("move should noop");
 
-        assert_eq!(result.new_path, source.to_string_lossy());
+        // `new_path` is forward-slash normalized regardless of OS.
+        let expected_new_path = source.to_string_lossy().replace('\\', "/");
+        assert_eq!(result.new_path, expected_new_path);
         assert!(source.exists());
         assert_eq!(result.updated_files, 0);
     }

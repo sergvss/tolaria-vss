@@ -69,6 +69,23 @@ pub(crate) fn derive_markdown_title_from_content(content: &str, filename: &str) 
     extract_title(frontmatter.title.as_deref(), content, filename)
 }
 
+/// Convert a `Path` to a string with forward-slash separators on every OS.
+///
+/// Vault entries store paths in this normalized form so the frontend wikilink
+/// resolver, multi-window matching, the rename pipeline, and git output
+/// (which is already forward-slash) all compare relative paths byte-for-byte
+/// across platforms. Filesystem APIs on Windows accept `/` interchangeably
+/// with `\\`, so callers can pass the result back through `Path::new` without
+/// extra conversion.
+pub(crate) fn normalize_vault_path(path: &Path) -> String {
+    let lossy = path.to_string_lossy();
+    if cfg!(windows) && lossy.contains('\\') {
+        lossy.replace('\\', "/")
+    } else {
+        lossy.into_owned()
+    }
+}
+
 fn resolve_entry_dates(
     fs_modified: Option<u64>,
     fs_created: Option<u64>,
@@ -127,7 +144,7 @@ pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>) -> Result<Vault
     let related_to = preferred_relationship_refs(&relationships, "related_to", "Related to");
 
     Ok(VaultEntry {
-        path: path.to_string_lossy().to_string(),
+        path: normalize_vault_path(path),
         filename,
         title,
         is_a,
@@ -180,7 +197,7 @@ pub(crate) fn parse_non_md_file(
     let title = extract_yml_name(path).unwrap_or_else(|| filename.clone());
 
     Ok(VaultEntry {
-        path: path.to_string_lossy().to_string(),
+        path: normalize_vault_path(path),
         filename: filename.clone(),
         title,
         file_kind,

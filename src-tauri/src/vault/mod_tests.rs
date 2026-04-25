@@ -43,3 +43,44 @@ mod type_and_links;
 // save_image tests are in vault/image.rs
 // purge_trash tests are in vault/trash.rs
 // rename_note tests are in vault/rename.rs
+
+#[test]
+fn normalize_vault_path_keeps_unix_separators_intact() {
+    let normalized = normalize_vault_path(Path::new("/Users/alex/vault/notes/foo.md"));
+    assert_eq!(normalized, "/Users/alex/vault/notes/foo.md");
+}
+
+#[cfg(windows)]
+#[test]
+fn normalize_vault_path_rewrites_backslashes_on_windows() {
+    let normalized = normalize_vault_path(Path::new(r"C:\Users\alex\vault\notes\foo.md"));
+    assert_eq!(normalized, "C:/Users/alex/vault/notes/foo.md");
+}
+
+#[cfg(windows)]
+#[test]
+fn normalize_vault_path_handles_mixed_separators() {
+    // `Path::join` on Windows preserves any forward slashes already in the
+    // input alongside the backslash it inserts; the normalizer collapses
+    // both to forward slashes.
+    let normalized = normalize_vault_path(Path::new(r"C:\Users\alex\vault/notes/foo.md"));
+    assert_eq!(normalized, "C:/Users/alex/vault/notes/foo.md");
+}
+
+#[test]
+fn parse_md_file_returns_forward_slash_path_on_every_os() {
+    let dir = TempDir::new().unwrap();
+    create_test_file(dir.path(), "notes/projects/my-note.md", "# My Note\nbody\n");
+    let entry =
+        parse_md_file(&dir.path().join("notes/projects/my-note.md"), None).unwrap();
+    assert!(
+        !entry.path.contains('\\'),
+        "VaultEntry.path must be forward-slash normalized, got: {}",
+        entry.path,
+    );
+    assert!(
+        entry.path.ends_with("notes/projects/my-note.md"),
+        "VaultEntry.path should end with the relative path: {}",
+        entry.path,
+    );
+}
