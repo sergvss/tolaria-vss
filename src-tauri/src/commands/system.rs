@@ -218,23 +218,27 @@ pub fn update_current_window_min_size(
     min_height: f64,
     grow_to_fit: bool,
 ) -> Result<(), String> {
+    // Snapshot the maximize state up front. On Windows both `set_min_size`
+    // and `set_size` can drop the maximized flag depending on the requested
+    // values vs. the monitor's working area; if either does, restore it at
+    // the end so toggling Inspector/Sidebar never unmaximizes the window.
+    let was_maximized = window.is_maximized().unwrap_or(false);
+
     window
         .set_min_size(Some(LogicalSize::new(min_width, min_height)))
         .map_err(|e| e.to_string())?;
 
     if !grow_to_fit {
+        restore_maximize_if_dropped(&window, was_maximized);
         return Ok(());
     }
 
-    // Skip the grow path when the window is already maximized. On Windows
-    // calling `set_size` on a maximized window first unmaximizes it and then
-    // resizes — if the requested size is close to the monitor's working area
-    // (which it often is once a pane like the inspector is visible), tao
-    // re-snaps it back to maximized, and the user sees the panel toggle
-    // appear to "snap to fullscreen". The min-size constraint above is
-    // already in place, so the window will respect it the next time the
-    // user resizes manually.
-    if window.is_maximized().unwrap_or(false) {
+    // Skip the grow path when the window is already maximized. Calling
+    // `set_size` on a maximized window first unmaximizes and then resizes —
+    // the min-size constraint above already pins the lower bound for the
+    // next manual resize, so we don't need to grow on top of that.
+    if was_maximized {
+        restore_maximize_if_dropped(&window, true);
         return Ok(());
     }
 
@@ -253,6 +257,20 @@ pub fn update_current_window_min_size(
     window
         .set_size(LogicalSize::new(next_width, next_height))
         .map_err(|e| e.to_string())
+}
+
+/// Re-apply maximize when a Windows-side mutation (set_min_size / set_size)
+/// silently dropped it. No-op when the window was not maximized to begin
+/// with, or when it's still maximized after the mutation.
+#[cfg(desktop)]
+fn restore_maximize_if_dropped(window: &Window, was_maximized: bool) {
+    if !was_maximized {
+        return;
+    }
+    if window.is_maximized().unwrap_or(true) {
+        return;
+    }
+    let _ = window.maximize();
 }
 
 #[cfg(desktop)]
