@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { VaultEntry } from '../../types'
 import { wikilinkTarget } from '../../utils/wikilink'
+import { splitPath } from '../../utils/pathSeparators'
 import type { ReferencedByItem, BacklinkItem } from '../InspectorPanels'
 
 interface InspectorLinkIndex {
@@ -34,8 +35,8 @@ function pushToResultMap<T>(map: Map<string, T[]>, key: string, item: T): void {
 }
 
 function getEntryPathSuffixes(entryPath: string): string[] {
-  const pathWithoutExtension = entryPath.replace(/\.md$/, '').replace(/^\/+/, '')
-  const segments = pathWithoutExtension.split('/')
+  const pathWithoutExtension = entryPath.replace(/\.md$/, '').replace(/^[/\\]+/, '')
+  const segments = splitPath(pathWithoutExtension).filter((segment) => segment.length > 0)
   const suffixes: string[] = []
 
   for (let index = 0; index < segments.length; index += 1) {

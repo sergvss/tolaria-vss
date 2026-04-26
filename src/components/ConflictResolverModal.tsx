@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { AlertTriangle, FileText, Check, Loader2 } from 'lucide-react'
 import type { ConflictFileState } from '../hooks/useConflictResolver'
 import { cn } from '@/lib/utils'
+import { getBasename } from '../utils/pathSeparators'
 
 type ConflictResolutionStrategy = 'ours' | 'theirs'
 
@@ -58,7 +59,7 @@ function isBinaryFile(file: string): boolean {
 }
 
 function fileName(path: string): string {
-  return path.split('/').pop() ?? path
+  return getBasename(path)
 }
 
 function ResolutionLabel({ resolution }: { resolution: ConflictFileState['resolution'] }) {

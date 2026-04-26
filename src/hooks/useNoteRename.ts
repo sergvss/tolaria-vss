@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { isTauri, mockInvoke } from '../mock-tauri'
 import type { VaultEntry } from '../types'
 import { slugify } from './useNoteCreation'
+import { getBasename } from '../utils/pathSeparators'
 
 interface RenameResult {
   new_path: string
@@ -103,7 +104,7 @@ export function buildRenamedEntry(entry: VaultEntry, newTitle: string, newPath: 
 }
 
 export function buildFilenameRenamedEntry(entry: VaultEntry, newPath: string): VaultEntry {
-  const filename = newPath.split('/').pop() ?? entry.filename
+  const filename = getBasename(newPath) || entry.filename
   return { ...entry, path: newPath, filename }
 }
 
@@ -156,8 +157,8 @@ export function renameToastMessage(updatedFiles: number, failedUpdates = 0): str
 }
 
 function folderLabel(params: { folderPath: string }): string {
-  const trimmed = params.folderPath.trim().replace(/^\/+|\/+$/g, '')
-  return trimmed.split('/').filter(Boolean).at(-1) ?? trimmed
+  const trimmed = params.folderPath.trim().replace(/^[/\\]+|[/\\]+$/g, '')
+  return getBasename(trimmed) || trimmed
 }
 
 function moveToastMessage(folderPath: string, updatedFiles: number, failedUpdates = 0): string {

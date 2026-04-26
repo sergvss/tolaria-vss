@@ -5,6 +5,7 @@ import { flushEditorContent } from '../utils/autoSave'
 import { extractH1TitleFromContent } from '../utils/noteTitle'
 import { isTauri } from '../mock-tauri'
 import type { VaultEntry } from '../types'
+import { getStem } from '../utils/pathSeparators'
 
 interface TabState {
   entry: VaultEntry
@@ -77,8 +78,7 @@ function findUnsavedFallback({
 }
 
 function isUntitledRenameCandidate(path: string): boolean {
-  const filename = path.split('/').pop() ?? ''
-  const stem = filename.replace(/\.md$/, '')
+  const stem = getStem(path)
   return stem.startsWith('untitled-') && /\d+$/.test(stem)
 }
 

@@ -6,6 +6,7 @@ import { containsWikilinks } from '../DynamicPropertiesPanel'
 import type { FrontmatterValue } from '../Inspector'
 import { NoteSearchList } from '../NoteSearchList'
 import { useNoteSearch } from '../../hooks/useNoteSearch'
+import { splitPath } from '../../utils/pathSeparators'
 import {
   resolveEntry,
   canonicalWikilinkTargetForEntry,
@@ -94,7 +95,7 @@ function hasExactTitleMatch({ entries, title }: { entries: VaultEntry[]; title: 
 
 function inferVaultPath(entries: VaultEntry[]): string {
   if (entries.length === 0) return ''
-  const segments = entries.map((entry) => entry.path.split('/').slice(0, -1))
+  const segments = entries.map((entry) => splitPath(entry.path).slice(0, -1))
   const prefix: string[] = []
   const maxDepth = Math.min(...segments.map((parts) => parts.length))
   for (let i = 0; i < maxDepth; i += 1) {

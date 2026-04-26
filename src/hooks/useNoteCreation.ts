@@ -4,6 +4,7 @@ import { isTauri, addMockEntry } from '../mock-tauri'
 import type { VaultEntry } from '../types'
 import { resolveEntry } from '../utils/wikilink'
 import { trackEvent } from '../lib/telemetry'
+import { getBasename } from '../utils/pathSeparators'
 
 export interface NewEntryParams {
   path: string
@@ -167,7 +168,7 @@ function findPathCollision(entries: VaultEntry[], path: string): VaultEntry | un
 }
 
 function buildCreationCollisionMessage({ noun, title, path }: { noun: 'note' | 'type'; title: string; path: string }): string {
-  const filename = path.split('/').pop() ?? path
+  const filename = getBasename(path)
   return `Cannot create ${noun} "${title}" because ${filename} already exists`
 }
 

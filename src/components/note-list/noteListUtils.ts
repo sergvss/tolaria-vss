@@ -1,6 +1,7 @@
 import type { VaultEntry, SidebarSelection, ModifiedFile, NoteStatus, ViewFile } from '../../types'
 import type { RelationshipGroup } from '../../utils/noteListHelpers'
 import { filenameStemToTitle } from '../../utils/noteTitle'
+import { getBasename } from '../../utils/pathSeparators'
 
 export interface DeletedNoteEntry extends VaultEntry {
   __deletedNotePreview: true
@@ -131,7 +132,7 @@ function applyChangeStats<T extends VaultEntry>(entry: T, file: ModifiedFile): T
 }
 
 function createDeletedNoteEntry(file: ModifiedFile): DeletedNoteEntry {
-  const filename = file.relativePath.split('/').pop() ?? file.relativePath
+  const filename = getBasename(file.relativePath)
   return {
     path: file.path,
     filename,

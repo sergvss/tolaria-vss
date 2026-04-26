@@ -14,6 +14,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import type { AiAction } from '../components/AiMessage'
 import type { NoteReference } from '../utils/ai-context'
 import { streamClaudeAgent, buildAgentSystemPrompt } from '../utils/ai-agent'
+import { getBasename } from '../utils/pathSeparators'
 import {
   nextMessageId, trimHistory, formatMessageWithHistory,
   type ChatMessage, MAX_HISTORY_TOKENS,
@@ -355,5 +356,5 @@ function parseNotePath(input: string | undefined): string | null {
 }
 
 function basename(filePath: string): string {
-  return filePath.split('/').pop() ?? filePath
+  return getBasename(filePath)
 }

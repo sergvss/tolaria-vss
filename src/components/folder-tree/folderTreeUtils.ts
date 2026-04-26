@@ -1,5 +1,7 @@
+import { splitPath } from '../../utils/pathSeparators'
+
 export function expandedTreePaths(path: string): string[] {
-  const segments = path.split('/').filter(Boolean)
+  const segments = splitPath(path).filter((segment) => segment.length > 0)
   return segments.map((_, index) => segments.slice(0, index + 1).join('/'))
 }
 

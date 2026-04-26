@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { isTauri, mockInvoke } from '../../mock-tauri'
 import type { SidebarSelection, VaultEntry } from '../../types'
+import { getBasename } from '../../utils/pathSeparators'
 
 export interface FolderRenameResult {
   old_path: string
@@ -54,7 +55,7 @@ export function replaceRelativeFolderPrefix(params: {
 }
 
 export function folderLabel(params: { folderPath: string }): string {
-  return params.folderPath.split('/').filter(Boolean).at(-1) ?? params.folderPath
+  return getBasename(params.folderPath) || params.folderPath
 }
 
 export async function invokeRenameFolder(params: {

@@ -42,6 +42,7 @@ import { useEntryActions } from './hooks/useEntryActions'
 import { useAppCommands } from './hooks/useAppCommands'
 import { triggerCommitEntryAction } from './utils/commitEntryAction'
 import { generateCommitMessage } from './utils/commitMessage'
+import { getBasename } from './utils/pathSeparators'
 import { useDialogs } from './hooks/useDialogs'
 import { useVaultSwitcher } from './hooks/useVaultSwitcher'
 import { useGitHistory } from './hooks/useGitHistory'
@@ -162,7 +163,7 @@ async function loadNoteWindowContent(path: string, vaultPath: string): Promise<s
 }
 
 function createPulseDeletedNoteEntry(fullPath: string, relativePath: string): DeletedNoteEntry {
-  const filename = relativePath.split('/').pop() ?? relativePath
+  const filename = getBasename(relativePath)
   return {
     path: fullPath,
     filename,
@@ -277,7 +278,7 @@ function App() {
       return
     }
 
-    const label = vaultPath.split('/').filter(Boolean).pop() || 'Local Vault'
+    const label = getBasename(vaultPath) || 'Local Vault'
     syncVaultSelection(vaultPath, label)
   }, [allVaults, switchVault, syncVaultSelection])
 
@@ -530,7 +531,7 @@ function App() {
     intervalMinutes: settings.auto_pull_interval_minutes,
     onVaultUpdated: handlePulledVaultUpdate,
     onConflict: (files) => {
-      const names = files.map((f) => f.split('/').pop()).join(', ')
+      const names = files.map((f) => getBasename(f)).join(', ')
       setToastMessage(`Conflict in ${names} — click to resolve`)
     },
     onToast: (msg) => setToastMessage(msg),

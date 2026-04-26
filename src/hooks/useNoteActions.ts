@@ -9,6 +9,7 @@ import {
   performRename, loadNoteContent, renameToastMessage, reloadTabsAfterRename, reloadVaultAfterRename,
 } from './useNoteRename'
 import { runFrontmatterAndApply, type FrontmatterOpOptions } from './frontmatterOps'
+import { getBasename } from '../utils/pathSeparators'
 
 export interface NoteActionsConfig {
   addEntry: (entry: VaultEntry) => void
@@ -75,7 +76,7 @@ async function renameAfterTitleChange({ path, newTitle, deps }: RenameAfterTitle
   const oldTitle = deps.tabsRef.current.find(t => t.entry.path === path)?.entry.title
   const result = await performRename({ path, newTitle, vaultPath: deps.vaultPath, oldTitle })
   if (result.new_path !== path) {
-    const newFilename = result.new_path.split('/').pop() ?? ''
+    const newFilename = getBasename(result.new_path)
     deps.onPathRenamed?.(path, result.new_path)
     deps.replaceEntry?.(path, { path: result.new_path, filename: newFilename, title: newTitle } as Partial<VaultEntry> & { path: string })
     const newContent = await loadNoteContent({ path: result.new_path })

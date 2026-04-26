@@ -5,6 +5,7 @@ import { deriveRawEditorEntryState } from './rawEditorEntryState'
 import { deriveDisplayTitleState } from '../utils/noteTitle'
 import { detectFrontmatterState } from '../utils/frontmatter'
 import type { VaultEntry } from '../types'
+import { getBasename } from '../utils/pathSeparators'
 
 const EMPTY_DERIVED_ENTRY_STATE_KEY = JSON.stringify(deriveRawEditorEntryState(''))
 
@@ -56,7 +57,7 @@ export function useEditorSaveWithLinks(config: {
     const frontmatterPatch = shouldSyncFrontmatterState(content)
       ? deriveRawEditorEntryState(content)
       : null
-    const filename = path.split('/').pop() ?? path
+    const filename = getBasename(path)
     const titlePatch = deriveDisplayTitleState({
       content,
       filename,

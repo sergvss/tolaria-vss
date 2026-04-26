@@ -1,4 +1,5 @@
 import type { VaultEntry } from '../types'
+import { getBasename } from './pathSeparators'
 
 /**
  * Detects whether the current window is a secondary "note window" (opened via
@@ -105,7 +106,7 @@ function stripKnownVaultPrefix({ notePath, vaultPath }: NoteWindowPathContext): 
     return normalizedPath.slice(vaultPrefix.length)
   }
 
-  const vaultName = normalizedVaultPath.split('/').pop()
+  const vaultName = getBasename(normalizedVaultPath)
   if (vaultName && normalizedPath.startsWith(`${vaultName}/`)) {
     return normalizedPath.slice(vaultName.length + 1)
   }

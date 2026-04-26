@@ -1,3 +1,4 @@
+import { getStem } from '../utils/pathSeparators'
 import { splitFrontmatter } from '../utils/wikilinks'
 
 type MarkdownContent = string
@@ -57,8 +58,7 @@ export function replaceTitleInFrontmatter(frontmatter: Frontmatter, newTitle: No
 }
 
 export function pathStem(path: FilePath): PathStem {
-  const filename = path.split('/').pop() ?? path
-  return filename.replace(/\.md$/, '')
+  return getStem(path)
 }
 
 export function slugifyPathStem(title: NoteTitle): PathStem {

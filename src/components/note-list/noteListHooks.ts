@@ -17,6 +17,7 @@ import type { DeletedNoteEntry } from './noteListUtils'
 import { useMultiSelect, type MultiSelectState } from '../../hooks/useMultiSelect'
 import { useNoteListKeyboard } from '../../hooks/useNoteListKeyboard'
 import { prefetchNoteContent } from '../../hooks/useTabManagement'
+import { getBasename } from '../../utils/pathSeparators'
 import type { NoteListPropertiesScope } from './noteListPropertiesEvents'
 
 // --- useTypeEntryMap ---
@@ -433,7 +434,7 @@ function resolveChangeStatus(path: string, changeStatusMap?: Map<string, Modifie
   const direct = changeStatusMap.get(path)
   if (direct) return direct
 
-  const filename = path.split('/').slice(-1)[0]
+  const filename = getBasename(path)
   for (const [key, status] of changeStatusMap) {
     if (path.endsWith(key) || key.endsWith(filename)) return status
   }

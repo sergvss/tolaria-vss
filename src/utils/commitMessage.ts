@@ -1,4 +1,5 @@
 import type { ModifiedFile } from '../types'
+import { getStem } from './pathSeparators'
 
 const VERB_MAP: Record<string, string> = {
   modified: 'Update',
@@ -11,8 +12,7 @@ const VERB_MAP: Record<string, string> = {
 const MAX_LISTED_FILES = 3
 
 function noteName(relativePath: string): string {
-  const basename = relativePath.split('/').pop() ?? relativePath
-  return basename.replace(/\.md$/, '')
+  return getStem(relativePath)
 }
 
 function verb(files: ModifiedFile[]): string {

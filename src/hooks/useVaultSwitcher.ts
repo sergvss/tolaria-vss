@@ -6,6 +6,7 @@ import { formatFolderPickerActionError, pickFolder } from '../utils/vault-dialog
 import { loadVaultList, saveVaultList } from '../utils/vaultListStore'
 import type { VaultOption } from '../components/StatusBar'
 import { trackEvent } from '../lib/telemetry'
+import { getBasename } from '../utils/pathSeparators'
 
 export type { PersistedVaultList } from '../utils/vaultListStore'
 
@@ -127,7 +128,7 @@ interface VaultPathInput {
 }
 
 function labelFromPath({ path }: VaultPathInput): string {
-  return path.split('/').pop() || 'Local Vault'
+  return getBasename(path) || 'Local Vault'
 }
 
 function tauriCall<T>(command: string, args: Record<string, unknown>): Promise<T> {

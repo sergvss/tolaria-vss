@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { isTauri, mockInvoke } from '../mock-tauri'
+import { getBasename } from '../utils/pathSeparators'
 
 type CloneStatus = 'idle' | 'cloning' | 'error'
 type CloneAttemptResult =
@@ -57,8 +58,8 @@ function suggestedPathFromUrl(request: Pick<CloneRequest, 'url'>): string {
 }
 
 function labelFromPath(request: Pick<CloneRequest, 'localPath'>): string {
-  const trimmed = request.localPath.trim().replace(/\/+$/g, '')
-  return trimmed.split('/').pop() || 'Vault'
+  const trimmed = request.localPath.trim().replace(/[/\\]+$/g, '')
+  return getBasename(trimmed) || 'Vault'
 }
 
 function shouldSyncSuggestedPath(localPath: string, pathDirty: boolean, previousSuggestedPath: string): boolean {
