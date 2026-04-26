@@ -110,11 +110,21 @@ pnpm exec tsc --noEmit
 pnpm build
 echo "  ✅ Build OK"
 
-# ── 1. Frontend coverage (≥70%) — includes all unit tests ───────────────
+# ── 1. Frontend tests (full suite, no coverage) ────────────────────────
+# Fork change: drop the coverage instrumentation locally. Coverage adds
+# 2-3x to the vitest run time on Windows but is not actionable from the
+# CLI (you'd want the HTML report). CI on GitHub Actions still enforces
+# the ≥70 % gate via `pnpm test:coverage`. Set LAPUTA_FULL_PRE_PUSH=1 to
+# opt back into the coverage run locally before a release-style push.
 echo ""
-echo "📊 [1/5] Frontend tests + coverage (≥70%)..."
-pnpm test:coverage --silent
-echo "  ✅ Frontend coverage OK"
+if [ "${LAPUTA_FULL_PRE_PUSH:-0}" = "1" ]; then
+  echo "📊 [1/5] Frontend tests + coverage (≥70%)..."
+  pnpm test:coverage --silent
+else
+  echo "📊 [1/5] Frontend tests (no coverage, --bail 1)..."
+  pnpm exec vitest run --silent --bail 1
+fi
+echo "  ✅ Frontend tests OK"
 
 # ── 2. Rust lint (clippy + fmt) — fast, run before coverage ─────────────
 echo ""
@@ -157,18 +167,27 @@ else
   echo "⏭️  [3/5] Rust coverage — skipped (no src-tauri/ changes)"
 fi
 
-# ── 4. Playwright core smoke lane (if any exist) ──────────────────────
+# ── 4. Playwright core smoke lane (gated on env flag) ─────────────────
+# Fork change: Playwright on Windows is flaky enough to block legitimate
+# pushes (Vite HMR + slow IO + the editor's auto-rename timing). We rely
+# on GitHub Actions CI to run the full smoke lane after the push lands;
+# locally we keep this stage opt-in via LAPUTA_FULL_PRE_PUSH=1 for the
+# rare cases when we want the full upstream behaviour before pushing.
 echo ""
-SMOKE_FILES=$(find tests/smoke tests/integration -name '*.spec.ts' 2>/dev/null | head -1)
-if [ -n "$SMOKE_FILES" ]; then
-  echo "🎭 [4/5] Playwright core smoke tests..."
-  if ! pnpm playwright:smoke; then
-    echo "  ❌ Core smoke tests FAILED"
-    exit 1
+if [ "${LAPUTA_FULL_PRE_PUSH:-0}" = "1" ]; then
+  SMOKE_FILES=$(find tests/smoke tests/integration -name '*.spec.ts' 2>/dev/null | head -1)
+  if [ -n "$SMOKE_FILES" ]; then
+    echo "🎭 [4/5] Playwright core smoke tests (LAPUTA_FULL_PRE_PUSH=1)..."
+    if ! pnpm playwright:smoke; then
+      echo "  ❌ Core smoke tests FAILED"
+      exit 1
+    fi
+    echo "  ✅ Core smoke tests OK"
+  else
+    echo "⏭️  [4/5] Playwright core smoke tests — skipped (no tests/**/*.spec.ts)"
   fi
-  echo "  ✅ Core smoke tests OK"
 else
-  echo "⏭️  [4/5] Playwright core smoke tests — skipped (no tests/**/*.spec.ts)"
+  echo "⏭️  [4/5] Playwright core smoke tests — skipped (set LAPUTA_FULL_PRE_PUSH=1 to enable; CI on GitHub Actions still runs the full smoke lane)"
 fi
 
 # ── 5. CodeScene code health gate (ratchet) ──────────────────────────────

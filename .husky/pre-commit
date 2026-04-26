@@ -63,8 +63,13 @@ STAGED_FRONTEND=$(
     || true
 )
 if [ -n "$STAGED_FRONTEND" ]; then
-  echo "  → tests..."
-  pnpm exec vitest run --silent
+  # Only run tests related to the files being committed. `vitest --changed`
+  # uses the dependency graph: it picks the test files that import any
+  # changed file (transitively). Fast-fail on the first failure so we
+  # don't sit through a full run when one assertion is already broken.
+  # Pre-push and CI still cover the rest of the suite.
+  echo "  → tests (related to staged changes)..."
+  pnpm exec vitest run --silent --changed --bail 1
 else
   echo "  → tests skipped (no frontend files staged — pre-push still runs full suite)"
 fi
