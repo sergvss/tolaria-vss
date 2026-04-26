@@ -19,6 +19,7 @@ import { WelcomeScreen } from './components/WelcomeScreen'
 import { AiAgentsOnboardingPrompt } from './components/AiAgentsOnboardingPrompt'
 import { TelemetryConsentDialog } from './components/TelemetryConsentDialog'
 import { FeedbackDialog } from './components/FeedbackDialog'
+import { AboutDialog } from './components/AboutDialog'
 import { McpSetupDialog } from './components/McpSetupDialog'
 import { NoteRetargetingDialogs } from './components/note-retargeting/NoteRetargetingDialogs'
 import { NoteRetargetingProvider } from './components/note-retargeting/noteRetargetingContext'
@@ -31,6 +32,7 @@ import { useAutoGit } from './hooks/useAutoGit'
 import { useVaultLoader } from './hooks/useVaultLoader'
 import { useAiAgentPreferences } from './hooks/useAiAgentPreferences'
 import { useSettings } from './hooks/useSettings'
+import { applyLanguage } from './i18n'
 import { useDocumentThemeMode } from './hooks/useDocumentThemeMode'
 import { useThemeMode } from './hooks/useThemeMode'
 import { useNoteActions } from './hooks/useNoteActions'
@@ -236,10 +238,13 @@ function App() {
   const dialogs = useDialogs()
   const { showAIChat, toggleAIChat } = dialogs
   const [showFeedback, setShowFeedback] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
   const [showMcpSetupDialog, setShowMcpSetupDialog] = useState(false)
   const [mcpDialogAction, setMcpDialogAction] = useState<'connect' | 'disconnect' | null>(null)
   const openFeedback = useCallback(() => setShowFeedback(true), [])
   const closeFeedback = useCallback(() => setShowFeedback(false), [])
+  const openAbout = useCallback(() => setShowAbout(true), [])
+  const closeAbout = useCallback(() => setShowAbout(false), [])
   const networkStatus = useNetworkStatus()
 
   useEffect(() => {
@@ -376,6 +381,10 @@ function App() {
   }, [updateConfig, vaultConfig.inbox?.noteListProperties])
   const { settings, loaded: settingsLoaded, saveSettings } = useSettings()
   useThemeMode(settings.theme_mode, settingsLoaded)
+  useEffect(() => {
+    if (!settingsLoaded) return
+    void applyLanguage(settings.language)
+  }, [settingsLoaded, settings.language])
   const documentThemeMode = useDocumentThemeMode()
   const handleToggleThemeMode = useCallback(() => {
     const theme_mode = documentThemeMode === 'dark' ? 'light' : 'dark'
@@ -1289,6 +1298,7 @@ function App() {
     onSave: appSave.handleSave,
     onOpenSettings: dialogs.openSettings,
     onOpenFeedback: openFeedback,
+    onOpenAbout: openAbout,
     onDeleteNote: deleteActions.handleDeleteNote,
     onArchiveNote: entryActions.handleArchiveNote, onUnarchiveNote: entryActions.handleUnarchiveNote,
     onCommitPush: handleCommitPush,
@@ -1567,6 +1577,7 @@ function App() {
         />
         <SettingsPanel open={dialogs.showSettings} settings={settings} aiAgentsStatus={aiAgentsStatus} isGitVault={isGitVault} onSave={saveSettings} explicitOrganizationEnabled={explicitOrganizationEnabled} onSaveExplicitOrganization={handleSaveExplicitOrganization} onClose={dialogs.closeSettings} />
         <FeedbackDialog open={showFeedback} onClose={closeFeedback} />
+        <AboutDialog open={showAbout} onClose={closeAbout} />
         <McpSetupDialog open={showMcpSetupDialog} status={mcpStatus} busyAction={mcpDialogAction} onClose={closeMcpSetupDialog} onConnect={handleConnectMcp} onDisconnect={handleDisconnectMcp} />
         <CloneVaultModal key={dialogs.showCloneVault ? 'clone-open' : 'clone-closed'} open={dialogs.showCloneVault} onClose={dialogs.closeCloneVault} onVaultCloned={vaultSwitcher.handleVaultCloned} />
         {deleteActions.confirmDelete && (

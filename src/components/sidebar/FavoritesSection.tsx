@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { VaultEntry, SidebarSelection } from '../../types'
 import {
   DndContext, PointerSensor, closestCenter, type DragEndEvent, useSensor, useSensors,
@@ -111,6 +112,7 @@ export function FavoritesSection({
   collapsed,
   onToggle,
 }: FavoritesSectionProps) {
+  const { t } = useTranslation()
   const favorites = useMemo(() => sortFavorites(entries), [entries])
   const favoriteIds = useMemo(() => favorites.map((entry) => entry.path), [favorites])
   const typeEntryMap = useMemo(() => buildTypeEntryMap(entries), [entries])
@@ -134,7 +136,7 @@ export function FavoritesSection({
 
   return (
     <div style={{ padding: '0 6px' }}>
-      <SidebarGroupHeader label="FAVORITES" collapsed={collapsed} onToggle={onToggle} count={favorites.length} />
+      <SidebarGroupHeader label={t('sidebar.favorites')} collapsed={collapsed} onToggle={onToggle} count={favorites.length} />
       {!collapsed && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={favoriteIds} strategy={verticalListSortingStrategy}>

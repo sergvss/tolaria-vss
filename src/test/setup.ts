@@ -1,4 +1,8 @@
 import '@testing-library/jest-dom/vitest'
+// Initialize i18next synchronously so components rendered under react-i18next
+// see real translation strings during tests instead of bare keys
+// (e.g. "createNote.title").
+import '../i18n'
 import { afterEach, vi } from 'vitest'
 import { createElement, type ReactNode, type ComponentType } from 'react'
 

@@ -20,6 +20,7 @@ pub struct Settings {
     pub theme_mode: Option<String>,
     pub initial_h1_auto_rename_enabled: Option<bool>,
     pub default_ai_agent: Option<String>,
+    pub language: Option<String>,
 }
 
 fn normalize_optional_string(value: Option<String>) -> Option<String> {
@@ -61,6 +62,13 @@ pub fn normalize_theme_mode(value: Option<&str>) -> Option<String> {
     }
 }
 
+pub fn normalize_language(value: Option<&str>) -> Option<String> {
+    match value.map(|candidate| candidate.trim().to_ascii_lowercase()) {
+        Some(lang) if lang == "en" || lang == "ru" => Some(lang),
+        _ => None,
+    }
+}
+
 fn normalize_settings(settings: Settings) -> Settings {
     Settings {
         auto_pull_interval_minutes: settings.auto_pull_interval_minutes,
@@ -80,6 +88,7 @@ fn normalize_settings(settings: Settings) -> Settings {
         theme_mode: normalize_theme_mode(settings.theme_mode.as_deref()),
         initial_h1_auto_rename_enabled: settings.initial_h1_auto_rename_enabled,
         default_ai_agent: normalize_default_ai_agent(settings.default_ai_agent.as_deref()),
+        language: normalize_language(settings.language.as_deref()),
     }
 }
 

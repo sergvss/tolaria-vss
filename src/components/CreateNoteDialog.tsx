@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,6 +28,7 @@ interface CreateNoteDialogProps {
 }
 
 export function CreateNoteDialog({ open, onClose, onCreate, defaultType, customTypes = [] }: CreateNoteDialogProps) {
+  const { t } = useTranslation()
   const [title, setTitle] = useState('')
   const [type, setType] = useState<string>('Note')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -51,68 +53,68 @@ export function CreateNoteDialog({ open, onClose, onCreate, defaultType, customT
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose() }}>
       <DialogContent showCloseButton={false} className="sm:max-w-[420px]">
         <DialogHeader>
-          <DialogTitle>Create New Note</DialogTitle>
+          <DialogTitle>{t('createNote.title')}</DialogTitle>
           <DialogDescription className="sr-only">
-            Enter a title and choose a type for the new note.
+            {t('createNote.description')}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
-              Title
+              {t('createNote.labelTitle')}
             </label>
             <Input
               ref={inputRef}
-              placeholder="Enter note title..."
+              placeholder={t('createNote.placeholder')}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
-              Type
+              {t('createNote.labelType')}
             </label>
             <div className="flex flex-wrap gap-1.5">
-              {BUILT_IN_TYPES.map((t) => (
+              {BUILT_IN_TYPES.map((option) => (
                 <Button
-                  key={t}
+                  key={option}
                   type="button"
-                  variant={type === t ? 'default' : 'outline'}
+                  variant={type === option ? 'default' : 'outline'}
                   size="sm"
                   className={cn(
                     "rounded-full text-xs",
-                    type === t && "bg-primary text-primary-foreground"
+                    type === option && "bg-primary text-primary-foreground"
                   )}
-                  onClick={() => setType(t)}
+                  onClick={() => setType(option)}
                 >
-                  {t}
+                  {option}
                 </Button>
               ))}
-              {customTypes.map((t) => (
+              {customTypes.map((option) => (
                 <Button
-                  key={t}
+                  key={option}
                   type="button"
-                  variant={type === t ? 'default' : 'outline'}
+                  variant={type === option ? 'default' : 'outline'}
                   size="sm"
                   className={cn(
                     "rounded-full text-xs",
-                    type === t
+                    type === option
                       ? "bg-[var(--accent-blue)] text-primary-foreground"
                       : "border-[var(--accent-blue)] text-[var(--accent-blue)]"
                   )}
-                  onClick={() => setType(t)}
+                  onClick={() => setType(option)}
                 >
-                  {t}
+                  {option}
                 </Button>
               ))}
             </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              {t('actions.cancel')}
             </Button>
             <Button type="submit" disabled={!title.trim()}>
-              Create
+              {t('actions.create')}
             </Button>
           </DialogFooter>
         </form>

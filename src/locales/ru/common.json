@@ -1,0 +1,94 @@
+{
+  "language": {
+    "english": "English",
+    "russian": "Русский"
+  },
+  "actions": {
+    "save": "Сохранить",
+    "cancel": "Отменить",
+    "close": "Закрыть",
+    "delete": "Удалить",
+    "open": "Открыть",
+    "create": "Создать",
+    "confirm": "Подтвердить",
+    "yes": "Да",
+    "no": "Нет",
+    "ok": "OK",
+    "rename": "Переименовать"
+  },
+  "states": {
+    "loading": "Загрузка...",
+    "saving": "Сохранение...",
+    "saved": "Сохранено",
+    "unsavedChanges": "Несохранённые изменения",
+    "error": "Ошибка",
+    "warning": "Предупреждение"
+  },
+  "settings": {
+    "title": "Настройки",
+    "closeTooltip": "Закрыть настройки",
+    "sections": {
+      "syncAndUpdates": "Синхронизация и обновления",
+      "autogit": "AutoGit",
+      "appearance": "Оформление",
+      "titlesAndFilenames": "Заголовки и имена файлов",
+      "aiAgent": "ИИ-агент",
+      "organization": "Организация",
+      "privacy": "Конфиденциальность",
+      "language": "Язык",
+      "workflow": "Рабочий процесс"
+    },
+    "appearance": {
+      "themeMode": "Тема",
+      "themeLight": "Светлая",
+      "themeDark": "Тёмная",
+      "themeSystem": "Системная",
+      "languageLabel": "Язык интерфейса",
+      "languageHint": "Перезапуск не требуется - интерфейс обновится мгновенно."
+    }
+  },
+  "noteTypes": {
+    "untitled": "Без названия"
+  },
+  "about": {
+    "title": "О программе Tolaria",
+    "description": "Local-first приложение для работы со знаниями",
+    "versionLabel": "Версия",
+    "buildLabel": "Сборка",
+    "forkBy": "Windows-форк поддерживает",
+    "forkRepo": "GitHub: sergvss/tolaria-vss",
+    "originalProject": "Основано на Tolaria от",
+    "originalRepo": "GitHub: refactoringhq/tolaria",
+    "license": "Лицензия AGPL-3.0-or-later"
+  },
+  "createNote": {
+    "title": "Создать новую заметку",
+    "description": "Введите заголовок и выберите тип для новой заметки.",
+    "labelTitle": "Заголовок",
+    "labelType": "Тип",
+    "placeholder": "Введите заголовок заметки..."
+  },
+  "confirmDelete": {
+    "title": "Удалить эту заметку?",
+    "description": "Это действие нельзя отменить.",
+    "deleteButton": "Удалить"
+  },
+  "sidebar": {
+    "inbox": "Входящие",
+    "allNotes": "Все заметки",
+    "archive": "Архив",
+    "favorites": "ИЗБРАННОЕ",
+    "views": "ВИДЫ",
+    "types": "ТИПЫ",
+    "customizeSections": "Настроить разделы",
+    "createNewType": "Создать новый тип",
+    "collapseSidebar": "Свернуть боковую панель"
+  },
+  "emptyStates": {
+    "noNotes": "Нет заметок",
+    "noResults": "Ничего не найдено",
+    "noTags": "Нет тегов",
+    "noBacklinks": "Нет обратных ссылок",
+    "listEmpty": "Список пуст"
+  }
+}

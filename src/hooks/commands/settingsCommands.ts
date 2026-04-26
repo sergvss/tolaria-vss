@@ -16,6 +16,7 @@ interface SettingsCommandsConfig {
   onInstallMcp?: () => void
   onReloadVault?: () => void
   onRepairVault?: () => void
+  onOpenAbout?: () => void
 }
 
 function buildPrimarySettingsCommands({
@@ -45,6 +46,21 @@ function buildPrimarySettingsCommands({
       },
     },
     { id: 'check-updates', label: 'Check for Updates', group: 'Settings', keywords: ['update', 'version', 'upgrade', 'release'], enabled: true, execute: () => onCheckForUpdates?.() },
+  ]
+}
+
+function buildAboutCommands({
+  onOpenAbout,
+}: Pick<SettingsCommandsConfig, 'onOpenAbout'>): CommandAction[] {
+  return [
+    {
+      id: 'about-tolaria',
+      label: 'About Tolaria',
+      group: 'Settings',
+      keywords: ['about', 'version', 'fork', 'sergvss', 'credits', 'license'],
+      enabled: !!onOpenAbout,
+      execute: () => onOpenAbout?.(),
+    },
   ]
 }
 
@@ -88,7 +104,7 @@ export function buildSettingsCommands(config: SettingsCommandsConfig): CommandAc
   const {
     mcpStatus, vaultCount, isGettingStartedHidden,
     onOpenSettings, onOpenFeedback, onOpenVault, onCreateEmptyVault, onRemoveActiveVault, onRestoreGettingStarted,
-    onCheckForUpdates, onInstallMcp, onReloadVault, onRepairVault,
+    onCheckForUpdates, onInstallMcp, onReloadVault, onRepairVault, onOpenAbout,
   } = config
 
   return [
@@ -102,5 +118,6 @@ export function buildSettingsCommands(config: SettingsCommandsConfig): CommandAc
       onRestoreGettingStarted,
     }),
     ...buildMaintenanceCommands({ mcpStatus, onInstallMcp, onReloadVault, onRepairVault }),
+    ...buildAboutCommands({ onOpenAbout }),
   ]
 }

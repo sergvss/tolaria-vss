@@ -24,6 +24,8 @@ import {
 } from '../lib/themeMode'
 import { normalizeReleaseChannel, serializeReleaseChannel, type ReleaseChannel } from '../lib/releaseChannel'
 import { trackEvent } from '../lib/telemetry'
+import { isSupportedLanguage, type SupportedLanguage } from '../i18n'
+import { useTranslation } from 'react-i18next'
 import { Button } from './ui/button'
 import { Checkbox, type CheckedState } from './ui/checkbox'
 import { Input } from './ui/input'
@@ -56,6 +58,7 @@ interface SettingsDraft {
   defaultAiAgent: AiAgentId
   releaseChannel: ReleaseChannel
   themeMode: ThemeMode
+  language: SupportedLanguage
   initialH1AutoRename: boolean
   crashReporting: boolean
   analytics: boolean
@@ -81,6 +84,8 @@ interface SettingsBodyProps {
   setReleaseChannel: (value: ReleaseChannel) => void
   themeMode: ThemeMode
   setThemeMode: (value: ThemeMode) => void
+  language: SupportedLanguage
+  setLanguage: (value: SupportedLanguage) => void
   initialH1AutoRename: boolean
   setInitialH1AutoRename: (value: boolean) => void
   explicitOrganization: boolean
@@ -118,6 +123,7 @@ function createSettingsDraft(
     defaultAiAgent: resolveDefaultAiAgent(settings.default_ai_agent),
     releaseChannel: normalizeReleaseChannel(settings.release_channel),
     themeMode: resolveSettingsDraftThemeMode(settings.theme_mode),
+    language: isSupportedLanguage(settings.language) ? settings.language : 'en',
     initialH1AutoRename: settings.initial_h1_auto_rename_enabled ?? true,
     crashReporting: settings.crash_reporting_enabled ?? false,
     analytics: settings.analytics_enabled ?? false,
@@ -159,6 +165,7 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     theme_mode: draft.themeMode,
     initial_h1_auto_rename_enabled: draft.initialH1AutoRename,
     default_ai_agent: draft.defaultAiAgent,
+    language: draft.language,
   }
 }
 
@@ -297,6 +304,8 @@ function SettingsPanelInner({
           setReleaseChannel={(value) => updateDraft('releaseChannel', value)}
           themeMode={draft.themeMode}
           setThemeMode={(value) => updateDraft('themeMode', value)}
+          language={draft.language}
+          setLanguage={(value) => updateDraft('language', value)}
           initialH1AutoRename={draft.initialH1AutoRename}
           setInitialH1AutoRename={(value) => updateDraft('initialH1AutoRename', value)}
           explicitOrganization={draft.explicitOrganization}
@@ -313,18 +322,19 @@ function SettingsPanelInner({
 }
 
 function SettingsHeader({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
   return (
     <div
       className="flex items-center justify-between shrink-0"
       style={{ height: 56, padding: '0 24px', borderBottom: '1px solid var(--border)' }}
     >
-      <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--foreground)' }}>Settings</span>
+      <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--foreground)' }}>{t('settings.title')}</span>
       <Button
         variant="ghost"
         size="icon-sm"
         onClick={onClose}
-        title="Close settings"
-        aria-label="Close settings"
+        title={t('settings.closeTooltip')}
+        aria-label={t('settings.closeTooltip')}
       >
         <X size={16} />
       </Button>
@@ -351,6 +361,8 @@ function SettingsBody({
   setReleaseChannel,
   themeMode,
   setThemeMode,
+  language,
+  setLanguage,
   initialH1AutoRename,
   setInitialH1AutoRename,
   explicitOrganization,
@@ -387,6 +399,8 @@ function SettingsBody({
         <AppearanceSettingsSection
           themeMode={themeMode}
           setThemeMode={setThemeMode}
+          language={language}
+          setLanguage={setLanguage}
         />
       </SettingsSection>
 
@@ -432,10 +446,11 @@ function SyncAndUpdatesSection({
   releaseChannel,
   setReleaseChannel,
 }: Pick<SettingsBodyProps, 'pullInterval' | 'setPullInterval' | 'releaseChannel' | 'setReleaseChannel'>) {
+  const { t } = useTranslation()
   return (
     <>
       <SectionHeading
-        title="Sync & Updates"
+        title={t('settings.sections.syncAndUpdates')}
         description="Configure background pulling and which update feed Tolaria follows. Stable only receives manually promoted releases, while Alpha follows every push to main."
       />
 
@@ -468,15 +483,45 @@ function SyncAndUpdatesSection({
 function AppearanceSettingsSection({
   themeMode,
   setThemeMode,
-}: Pick<SettingsBodyProps, 'themeMode' | 'setThemeMode'>) {
+  language,
+  setLanguage,
+}: Pick<SettingsBodyProps, 'themeMode' | 'setThemeMode' | 'language' | 'setLanguage'>) {
+  const { t } = useTranslation()
   return (
     <>
       <SectionHeading
-        title="Appearance"
-        description="Choose the app color mode used for Tolaria chrome, editor surfaces, menus, and dialogs."
+        title={t('settings.sections.appearance')}
+        description={t('settings.appearanceDescription', {
+          defaultValue: 'Choose the app color mode and language used across Tolaria.',
+        })}
       />
 
       <ThemeModeControl value={themeMode} onChange={setThemeMode} />
+
+      <div className="mt-4 flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="settings-language-picker" className="text-sm font-medium">
+            {t('settings.appearance.languageLabel')}
+          </label>
+          <p className="text-xs text-muted-foreground">
+            {t('settings.appearance.languageHint')}
+          </p>
+        </div>
+        <Select
+          value={language}
+          onValueChange={(value) => {
+            if (isSupportedLanguage(value)) setLanguage(value)
+          }}
+        >
+          <SelectTrigger id="settings-language-picker" className="w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="en">{t('language.english')}</SelectItem>
+            <SelectItem value="ru">{t('language.russian')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </>
   )
 }
@@ -564,10 +609,11 @@ function AutoGitSettingsSection({
   | 'autoGitInactiveThresholdSeconds'
   | 'setAutoGitInactiveThresholdSeconds'
 >) {
+  const { t } = useTranslation()
   return (
     <>
       <SectionHeading
-        title="AutoGit"
+        title={t('settings.sections.autogit')}
         description={autoGitSectionDescription(isGitVault)}
       />
 
@@ -603,10 +649,11 @@ function TitleSettingsSection({
   initialH1AutoRename,
   setInitialH1AutoRename,
 }: Pick<SettingsBodyProps, 'initialH1AutoRename' | 'setInitialH1AutoRename'>) {
+  const { t } = useTranslation()
   return (
     <>
       <SectionHeading
-        title="Titles & Filenames"
+        title={t('settings.sections.titlesAndFilenames')}
         description="Choose whether Tolaria automatically syncs untitled note filenames from the first H1 title."
       />
 
@@ -639,10 +686,11 @@ function AiAgentSettingsSection({
   defaultAiAgent,
   setDefaultAiAgent,
 }: Pick<SettingsBodyProps, 'aiAgentsStatus' | 'defaultAiAgent' | 'setDefaultAiAgent'>) {
+  const { t } = useTranslation()
   return (
     <>
       <SectionHeading
-        title="AI Agents"
+        title={t('settings.sections.aiAgent')}
         description="Choose which CLI AI agent Tolaria uses in the AI panel and command palette."
       />
 
@@ -667,10 +715,11 @@ function PrivacySettingsSection({
   analytics,
   setAnalytics,
 }: Pick<SettingsBodyProps, 'crashReporting' | 'setCrashReporting' | 'analytics' | 'setAnalytics'>) {
+  const { t } = useTranslation()
   return (
     <>
       <SectionHeading
-        title="Privacy & Telemetry"
+        title={t('settings.sections.privacy')}
         description="Anonymous data helps us fix bugs and improve Tolaria. No vault content, note titles, or file paths are ever sent."
       />
 
@@ -828,10 +877,11 @@ function OrganizationWorkflowSection({
   autoAdvanceInboxAfterOrganize: boolean
   onChangeAutoAdvanceInboxAfterOrganize: (value: boolean) => void
 }) {
+  const { t } = useTranslation()
   return (
     <>
       <SectionHeading
-        title="Workflow"
+        title={t('settings.sections.workflow')}
         description="Choose whether Tolaria shows the Inbox workflow, plus how it moves through items while you triage them."
       />
 
@@ -909,6 +959,7 @@ function TelemetryToggle({
 }
 
 function SettingsFooter({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
+  const { t } = useTranslation()
   return (
     <div
       className="flex items-center justify-between shrink-0"
@@ -917,10 +968,10 @@ function SettingsFooter({ onClose, onSave }: { onClose: () => void; onSave: () =
       <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{'\u2318'}, to open settings</span>
       <div className="flex gap-2">
         <Button variant="outline" onClick={onClose}>
-          Cancel
+          {t('actions.cancel')}
         </Button>
         <Button onClick={onSave} data-testid="settings-save">
-          Save
+          {t('actions.save')}
         </Button>
       </div>
     </div>

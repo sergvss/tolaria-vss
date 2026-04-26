@@ -1,0 +1,94 @@
+{
+  "language": {
+    "english": "English",
+    "russian": "Русский"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete",
+    "open": "Open",
+    "create": "Create",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "rename": "Rename"
+  },
+  "states": {
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "unsavedChanges": "Unsaved changes",
+    "error": "Error",
+    "warning": "Warning"
+  },
+  "settings": {
+    "title": "Settings",
+    "closeTooltip": "Close settings",
+    "sections": {
+      "syncAndUpdates": "Sync & Updates",
+      "autogit": "AutoGit",
+      "appearance": "Appearance",
+      "titlesAndFilenames": "Titles & Filenames",
+      "aiAgent": "AI Agent",
+      "organization": "Organization",
+      "privacy": "Privacy",
+      "language": "Language",
+      "workflow": "Workflow"
+    },
+    "appearance": {
+      "themeMode": "Theme",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "themeSystem": "System",
+      "languageLabel": "Display language",
+      "languageHint": "Restart not required - the UI updates immediately."
+    }
+  },
+  "noteTypes": {
+    "untitled": "Untitled"
+  },
+  "about": {
+    "title": "About Tolaria",
+    "description": "Local-first knowledge work app",
+    "versionLabel": "Version",
+    "buildLabel": "Build",
+    "forkBy": "Windows fork maintained by",
+    "forkRepo": "GitHub: sergvss/tolaria-vss",
+    "originalProject": "Based on Tolaria by",
+    "originalRepo": "GitHub: refactoringhq/tolaria",
+    "license": "Licensed under AGPL-3.0-or-later"
+  },
+  "createNote": {
+    "title": "Create New Note",
+    "description": "Enter a title and choose a type for the new note.",
+    "labelTitle": "Title",
+    "labelType": "Type",
+    "placeholder": "Enter note title..."
+  },
+  "confirmDelete": {
+    "title": "Delete this note?",
+    "description": "This action cannot be undone.",
+    "deleteButton": "Delete"
+  },
+  "sidebar": {
+    "inbox": "Inbox",
+    "allNotes": "All Notes",
+    "archive": "Archive",
+    "favorites": "FAVORITES",
+    "views": "VIEWS",
+    "types": "TYPES",
+    "customizeSections": "Customize sections",
+    "createNewType": "Create new type",
+    "collapseSidebar": "Collapse sidebar"
+  },
+  "emptyStates": {
+    "noNotes": "No notes",
+    "noResults": "No results",
+    "noTags": "No tags",
+    "noBacklinks": "No backlinks",
+    "listEmpty": "List is empty"
+  }
+}

@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef } from 'react'
 import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Trash } from '@phosphor-icons/react'
 import {
   Dialog,
@@ -66,10 +67,12 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
   open,
   title,
   message,
-  confirmLabel = 'Delete permanently',
+  confirmLabel,
   onConfirm,
   onCancel,
 }: ConfirmDeleteDialogProps) {
+  const { t } = useTranslation()
+  const resolvedConfirmLabel = confirmLabel ?? t('confirmDelete.deleteButton')
   const confirmingRef = useRef(false)
   const cancelFocusIsIntentionalRef = useRef(false)
 
@@ -168,7 +171,7 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
               data-confirm-delete-primary="true"
               autoFocus
             >
-              {confirmLabel}
+              {resolvedConfirmLabel}
             </Button>
             <Button
               type="button"
@@ -187,7 +190,7 @@ export const ConfirmDeleteDialog = memo(function ConfirmDeleteDialog({
               data-confirm-delete-cancel="true"
               tabIndex={-1}
             >
-              Cancel
+              {t('actions.cancel')}
             </Button>
           </DialogFooter>
         </form>

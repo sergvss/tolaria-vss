@@ -4,6 +4,7 @@ import { isTauri, mockInvoke } from '../mock-tauri'
 import { normalizeStoredAiAgent } from '../lib/aiAgents'
 import { normalizeReleaseChannel, serializeReleaseChannel } from '../lib/releaseChannel'
 import { normalizeThemeMode } from '../lib/themeMode'
+import { isSupportedLanguage } from '../i18n'
 import type { Settings } from '../types'
 
 function tauriCall<T>(command: string, tauriArgs: Record<string, unknown>, mockArgs?: Record<string, unknown>): Promise<T> {
@@ -23,6 +24,11 @@ const EMPTY_SETTINGS: Settings = {
   release_channel: null,
   theme_mode: null,
   default_ai_agent: null,
+  language: null,
+}
+
+function normalizeLanguage(value: string | null | undefined): string | null {
+  return isSupportedLanguage(value) ? value : null
 }
 
 function normalizeSettings(settings: Settings): Settings {
@@ -33,6 +39,7 @@ function normalizeSettings(settings: Settings): Settings {
     ),
     theme_mode: normalizeThemeMode(settings.theme_mode),
     default_ai_agent: normalizeStoredAiAgent(settings.default_ai_agent),
+    language: normalizeLanguage(settings.language),
   }
 }
 
