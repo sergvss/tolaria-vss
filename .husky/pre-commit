@@ -49,12 +49,17 @@ if [ -n "$STAGED_TS" ]; then
 fi
 
 # Unit tests — only if frontend code, frontend deps, or test config changed.
-# Pure docs/Rust/CI commits cannot regress vitest; the pre-push gate still
-# runs the full coverage suite for those, so this only loosens the local
-# fast lane.
+# Pure docs/Rust/CI/scripts/e2e commits cannot regress vitest; the pre-push
+# gate still runs the full coverage suite for those, so this only loosens
+# the local fast lane.
+#
+# Only files under `src/` (the React app), the Vite/Vitest configs, and the
+# package manifests can affect Vitest. `scripts/` (build helpers like
+# fork-build.mjs), `e2e/` and `tests/smoke/` (Playwright suites), and the
+# `mcp-server/` package have their own test paths and never run under Vitest.
 STAGED_FRONTEND=$(
   git diff --cached --name-only \
-    | grep -E '\.(ts|tsx|js|jsx|mjs|cjs)$|^(package\.json|pnpm-lock\.yaml|vite\.config\..*|vitest\.config\..*)$|^src/test/' \
+    | grep -E '^(src/.*\.(ts|tsx|js|jsx|mjs|cjs)|package\.json|pnpm-lock\.yaml|vite\.config\..*|vitest\.config\..*)$' \
     || true
 )
 if [ -n "$STAGED_FRONTEND" ]; then
