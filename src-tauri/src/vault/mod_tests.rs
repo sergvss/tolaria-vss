@@ -71,8 +71,7 @@ fn normalize_vault_path_handles_mixed_separators() {
 fn parse_md_file_returns_forward_slash_path_on_every_os() {
     let dir = TempDir::new().unwrap();
     create_test_file(dir.path(), "notes/projects/my-note.md", "# My Note\nbody\n");
-    let entry =
-        parse_md_file(&dir.path().join("notes/projects/my-note.md"), None).unwrap();
+    let entry = parse_md_file(&dir.path().join("notes/projects/my-note.md"), None).unwrap();
     assert!(
         !entry.path.contains('\\'),
         "VaultEntry.path must be forward-slash normalized, got: {}",

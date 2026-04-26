@@ -81,8 +81,20 @@ fn fallback_node_candidates() -> Vec<PathBuf> {
     ];
 
     if let Some(home) = dirs::home_dir() {
-        candidates.push(home.join("scoop").join("apps").join("nodejs").join("current").join("node.exe"));
-        candidates.push(home.join("AppData").join("Local").join("Programs").join("Node.js").join("node.exe"));
+        candidates.push(
+            home.join("scoop")
+                .join("apps")
+                .join("nodejs")
+                .join("current")
+                .join("node.exe"),
+        );
+        candidates.push(
+            home.join("AppData")
+                .join("Local")
+                .join("Programs")
+                .join("Node.js")
+                .join("node.exe"),
+        );
         candidates.push(home.join(".volta").join("bin").join("node.exe"));
 
         // nvm-windows stores versions under %APPDATA%\nvm\<version>\node.exe.
@@ -838,9 +850,7 @@ mod tests {
     fn fallback_node_candidates_lists_windows_install_locations() {
         let candidates = fallback_node_candidates();
         assert!(candidates.contains(&PathBuf::from(r"C:\Program Files\nodejs\node.exe")));
-        assert!(candidates.contains(&PathBuf::from(
-            r"C:\Program Files (x86)\nodejs\node.exe"
-        )));
+        assert!(candidates.contains(&PathBuf::from(r"C:\Program Files (x86)\nodejs\node.exe")));
 
         let has_path_ending = |suffix: &str| {
             candidates

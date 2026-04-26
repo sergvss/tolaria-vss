@@ -963,10 +963,8 @@ mod tests {
         // accordingly.
         let cache_file = cache_path(vault);
         let cache_data = fs::read_to_string(&cache_file).unwrap();
-        let tampered = cache_data.replace(
-            normalized_vault.as_str(),
-            "/Users/other-machine/OtherVault",
-        );
+        let tampered =
+            cache_data.replace(normalized_vault.as_str(), "/Users/other-machine/OtherVault");
         fs::write(&cache_file, tampered).unwrap();
 
         // Rescanning should invalidate the stale cache and produce correct paths

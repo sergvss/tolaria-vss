@@ -55,8 +55,8 @@ fn load_at(path: &PathBuf) -> Result<VaultList, String> {
     }
     let content =
         fs::read_to_string(path).map_err(|e| format!("Failed to read vault list: {}", e))?;
-    let mut list: VaultList = serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse vault list: {}", e))?;
+    let mut list: VaultList =
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault list: {}", e))?;
     // Existing installs may have stored vault paths with the Windows
     // extended-length-path prefix (`\\?\`) before that prefix was stripped
     // at the canonicalize boundary. Strip it on read so the frontend never

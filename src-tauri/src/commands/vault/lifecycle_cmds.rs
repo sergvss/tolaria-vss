@@ -104,8 +104,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn strip_extended_length_prefix_drops_unc_prefix_on_drive_paths() {
-        let stripped =
-            strip_extended_length_prefix(PathBuf::from(r"\\?\C:\Users\name\vault"));
+        let stripped = strip_extended_length_prefix(PathBuf::from(r"\\?\C:\Users\name\vault"));
         assert_eq!(stripped, PathBuf::from(r"C:\Users\name\vault"));
     }
 
@@ -114,8 +113,7 @@ mod tests {
     fn strip_extended_length_prefix_keeps_unc_network_paths_intact() {
         // `\\?\UNC\server\share` is the extended form of `\\server\share`;
         // dropping `\\?\` here would corrupt the path into `UNC\server\share`.
-        let stripped =
-            strip_extended_length_prefix(PathBuf::from(r"\\?\UNC\server\share"));
+        let stripped = strip_extended_length_prefix(PathBuf::from(r"\\?\UNC\server\share"));
         assert_eq!(stripped, PathBuf::from(r"\\?\UNC\server\share"));
     }
 
