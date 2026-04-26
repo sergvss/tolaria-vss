@@ -1272,7 +1272,10 @@ mod tests {
             .map(|a| a.to_string_lossy().to_string())
             .collect();
         assert_eq!(program, "cmd.exe");
-        assert_eq!(args, vec!["/C".to_string(), bin.to_string_lossy().into_owned()]);
+        assert_eq!(
+            args,
+            vec!["/C".to_string(), bin.to_string_lossy().into_owned()]
+        );
     }
 
     #[cfg(windows)]

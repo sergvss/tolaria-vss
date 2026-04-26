@@ -103,7 +103,10 @@ pub async fn download_and_install_app_update<R: Runtime>(
     // "Check upstream releases" command palette entry opens GitHub releases
     // in the browser if the maintainer wants to merge upstream changes
     // explicitly. To upgrade the fork, reinstall a fresh installer.
-    Err("Auto-update is disabled in this fork build. To upgrade, reinstall a fresh fork installer.".to_string())
+    Err(
+        "Auto-update is disabled in this fork build. To upgrade, reinstall a fresh fork installer."
+            .to_string(),
+    )
 }
 
 #[cfg(test)]
