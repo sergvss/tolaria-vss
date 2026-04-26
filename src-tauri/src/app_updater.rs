@@ -90,43 +90,20 @@ pub async fn check_for_app_update<R: Runtime>(
 }
 
 pub async fn download_and_install_app_update<R: Runtime>(
-    app_handle: AppHandle<R>,
-    release_channel: Option<String>,
-    expected_version: String,
-    on_event: Channel<AppUpdateDownloadEvent>,
+    _app_handle: AppHandle<R>,
+    _release_channel: Option<String>,
+    _expected_version: String,
+    _on_event: Channel<AppUpdateDownloadEvent>,
 ) -> Result<(), String> {
-    let channel = ReleaseChannel::from_settings_value(release_channel.as_deref());
-    let updater = build_updater(&app_handle, channel)?;
-    let update = updater
-        .check()
-        .await
-        .map_err(|e| format!("Failed to refresh update metadata: {e}"))?
-        .ok_or_else(|| "No update is currently available".to_string())?;
-
-    if update.version != expected_version {
-        return Err(format!(
-            "Expected update version {}, found {}",
-            expected_version, update.version
-        ));
-    }
-
-    let mut started = false;
-    update
-        .download_and_install(
-            |chunk_length, content_length| {
-                if !started {
-                    started = true;
-                    let _ = on_event.send(AppUpdateDownloadEvent::Started { content_length });
-                }
-
-                let _ = on_event.send(AppUpdateDownloadEvent::Progress { chunk_length });
-            },
-            || {
-                let _ = on_event.send(AppUpdateDownloadEvent::Finished);
-            },
-        )
-        .await
-        .map_err(|e| format!("Failed to download and install update: {e}"))
+    // Fork build: the auto-installer path is intentionally disabled. Upstream
+    // releases at refactoringhq.github.io ship unmodified Tolaria without
+    // this fork's Windows-specific fixes, so letting a user click "Update"
+    // would silently overwrite the fork. The frontend hides the install
+    // button (only "Dismiss" + "Release notes" remain visible) and the
+    // "Check upstream releases" command palette entry opens GitHub releases
+    // in the browser if the maintainer wants to merge upstream changes
+    // explicitly. To upgrade the fork, reinstall a fresh installer.
+    Err("Auto-update is disabled in this fork build. To upgrade, reinstall a fresh fork installer.".to_string())
 }
 
 #[cfg(test)]

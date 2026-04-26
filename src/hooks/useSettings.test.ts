@@ -17,6 +17,7 @@ const defaultSettings: Settings = {
   theme_mode: null,
   default_ai_agent: null,
   language: null,
+  update_check_disabled: null,
 }
 
 const savedSettings: Settings = {
@@ -33,6 +34,7 @@ const savedSettings: Settings = {
   theme_mode: null,
   default_ai_agent: null,
   language: null,
+  update_check_disabled: null,
 }
 
 let mockSettingsStore: Settings = { ...defaultSettings }
@@ -118,6 +120,7 @@ describe('useSettings', () => {
       theme_mode: null,
       default_ai_agent: null,
       language: null,
+      update_check_disabled: null,
     }
 
     await act(async () => {

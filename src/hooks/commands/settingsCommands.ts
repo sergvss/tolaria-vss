@@ -1,6 +1,9 @@
 import { APP_COMMAND_IDS, getAppCommandShortcutDisplay } from '../appCommandCatalog'
 import type { CommandAction } from './types'
 import { rememberFeedbackDialogOpener } from '../../lib/feedbackDialogOpener'
+import { openExternalUrl } from '../../utils/url'
+
+const UPSTREAM_RELEASES_URL = 'https://github.com/refactoringhq/tolaria/releases'
 
 interface SettingsCommandsConfig {
   mcpStatus?: string
@@ -46,6 +49,14 @@ function buildPrimarySettingsCommands({
       },
     },
     { id: 'check-updates', label: 'Check for Updates', group: 'Settings', keywords: ['update', 'version', 'upgrade', 'release'], enabled: true, execute: () => onCheckForUpdates?.() },
+    {
+      id: 'check-upstream-releases',
+      label: 'Check upstream Tolaria releases',
+      group: 'Settings',
+      keywords: ['upstream', 'refactoringhq', 'tolaria', 'release', 'github', 'sync', 'merge'],
+      enabled: true,
+      execute: () => { void openExternalUrl(UPSTREAM_RELEASES_URL) },
+    },
   ]
 }
 

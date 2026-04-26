@@ -94,6 +94,12 @@ export interface Settings {
   initial_h1_auto_rename_enabled?: boolean | null
   default_ai_agent?: AiAgentId | null
   language?: string | null
+  /**
+   * Fork-only: disables the upstream auto-update check. When `true`, useUpdater
+   * skips the on-mount IPC call so no banner appears even if upstream ships
+   * a newer release.
+   */
+  update_check_disabled?: boolean | null
 }
 
 export interface GitPullResult {

@@ -25,6 +25,7 @@ const EMPTY_SETTINGS: Settings = {
   theme_mode: null,
   default_ai_agent: null,
   language: null,
+  update_check_disabled: null,
 }
 
 function normalizeLanguage(value: string | null | undefined): string | null {

@@ -1096,7 +1096,10 @@ function App() {
     inspectorCollapsed: layout.inspectorCollapsed,
   })
 
-  const { status: updateStatus, actions: updateActions } = useUpdater(settings.release_channel)
+  const { status: updateStatus, actions: updateActions } = useUpdater(
+    settings.release_channel,
+    settings.update_check_disabled === true,
+  )
 
   const handleCheckForUpdates = useCallback(async () => {
     if (updateStatus.state === 'downloading') {

@@ -104,12 +104,18 @@ function createDownloadProgressHandler(
 
 export function useUpdater(
   releaseChannel: string | null | undefined,
+  updateCheckDisabled: boolean = false,
 ): { status: UpdateStatus; actions: UpdateActions } {
   const [status, setStatus] = useState<UpdateStatus>({ state: 'idle' })
   const updateRef = useRef<AppUpdateMetadata | null>(null)
 
   const checkForUpdates = useCallback(async (): Promise<UpdateCheckResult> => {
     if (!isTauri()) return { kind: 'up-to-date' }
+    if (updateCheckDisabled) {
+      updateRef.current = null
+      setStatus({ state: 'idle' })
+      return { kind: 'up-to-date' }
+    }
 
     try {
       const update = await checkForAppUpdate(releaseChannel)
@@ -127,7 +133,7 @@ export function useUpdater(
       console.warn('[updater] Failed to check for updates')
       return { kind: 'error', message: buildUpdateCheckErrorMessage(error) }
     }
-  }, [releaseChannel])
+  }, [releaseChannel, updateCheckDisabled])
 
   useEffect(() => {
     if (!isTauri()) return

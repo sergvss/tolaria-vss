@@ -63,6 +63,7 @@ interface SettingsDraft {
   crashReporting: boolean
   analytics: boolean
   explicitOrganization: boolean
+  updateCheckDisabled: boolean
 }
 
 interface SettingsBodyProps {
@@ -82,6 +83,8 @@ interface SettingsBodyProps {
   setDefaultAiAgent: (value: AiAgentId) => void
   releaseChannel: ReleaseChannel
   setReleaseChannel: (value: ReleaseChannel) => void
+  updateCheckDisabled: boolean
+  setUpdateCheckDisabled: (value: boolean) => void
   themeMode: ThemeMode
   setThemeMode: (value: ThemeMode) => void
   language: SupportedLanguage
@@ -128,6 +131,7 @@ function createSettingsDraft(
     crashReporting: settings.crash_reporting_enabled ?? false,
     analytics: settings.analytics_enabled ?? false,
     explicitOrganization: explicitOrganizationEnabled,
+    updateCheckDisabled: settings.update_check_disabled ?? false,
   }
 }
 
@@ -166,6 +170,7 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     initial_h1_auto_rename_enabled: draft.initialH1AutoRename,
     default_ai_agent: draft.defaultAiAgent,
     language: draft.language,
+    update_check_disabled: draft.updateCheckDisabled,
   }
 }
 
@@ -302,6 +307,8 @@ function SettingsPanelInner({
           setDefaultAiAgent={(value) => updateDraft('defaultAiAgent', value)}
           releaseChannel={draft.releaseChannel}
           setReleaseChannel={(value) => updateDraft('releaseChannel', value)}
+          updateCheckDisabled={draft.updateCheckDisabled}
+          setUpdateCheckDisabled={(value) => updateDraft('updateCheckDisabled', value)}
           themeMode={draft.themeMode}
           setThemeMode={(value) => updateDraft('themeMode', value)}
           language={draft.language}
@@ -359,6 +366,8 @@ function SettingsBody({
   setDefaultAiAgent,
   releaseChannel,
   setReleaseChannel,
+  updateCheckDisabled,
+  setUpdateCheckDisabled,
   themeMode,
   setThemeMode,
   language,
@@ -380,6 +389,8 @@ function SettingsBody({
           setPullInterval={setPullInterval}
           releaseChannel={releaseChannel}
           setReleaseChannel={setReleaseChannel}
+          updateCheckDisabled={updateCheckDisabled}
+          setUpdateCheckDisabled={setUpdateCheckDisabled}
         />
       </SettingsSection>
 
@@ -445,7 +456,17 @@ function SyncAndUpdatesSection({
   setPullInterval,
   releaseChannel,
   setReleaseChannel,
-}: Pick<SettingsBodyProps, 'pullInterval' | 'setPullInterval' | 'releaseChannel' | 'setReleaseChannel'>) {
+  updateCheckDisabled,
+  setUpdateCheckDisabled,
+}: Pick<
+  SettingsBodyProps,
+  | 'pullInterval'
+  | 'setPullInterval'
+  | 'releaseChannel'
+  | 'setReleaseChannel'
+  | 'updateCheckDisabled'
+  | 'setUpdateCheckDisabled'
+>) {
   const { t } = useTranslation()
   return (
     <>
@@ -475,6 +496,14 @@ function SyncAndUpdatesSection({
           { value: 'alpha', label: 'Alpha' },
         ]}
         testId="settings-release-channel"
+      />
+
+      <SettingsSwitchRow
+        label="Disable update checks"
+        description="Skip the upstream update check on launch. Useful for fork builds where the upstream release would overwrite this fork's fixes."
+        checked={updateCheckDisabled}
+        onChange={setUpdateCheckDisabled}
+        testId="settings-update-check-disabled"
       />
     </>
   )

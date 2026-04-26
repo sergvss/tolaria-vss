@@ -21,6 +21,7 @@ pub struct Settings {
     pub initial_h1_auto_rename_enabled: Option<bool>,
     pub default_ai_agent: Option<String>,
     pub language: Option<String>,
+    pub update_check_disabled: Option<bool>,
 }
 
 fn normalize_optional_string(value: Option<String>) -> Option<String> {
@@ -89,6 +90,7 @@ fn normalize_settings(settings: Settings) -> Settings {
         initial_h1_auto_rename_enabled: settings.initial_h1_auto_rename_enabled,
         default_ai_agent: normalize_default_ai_agent(settings.default_ai_agent.as_deref()),
         language: normalize_language(settings.language.as_deref()),
+        update_check_disabled: settings.update_check_disabled,
     }
 }
 
@@ -230,6 +232,8 @@ mod tests {
             theme_mode: Some("dark".to_string()),
             initial_h1_auto_rename_enabled: Some(false),
             default_ai_agent: Some("codex".to_string()),
+            language: Some("ru".to_string()),
+            update_check_disabled: Some(true),
         };
         let json = serde_json::to_string(&settings).unwrap();
         let parsed: Settings = serde_json::from_str(&json).unwrap();

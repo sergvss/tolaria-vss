@@ -63,11 +63,16 @@ const readyIconStyle = {
 } satisfies CSSProperties
 
 function renderAvailableContent(status: Extract<VisibleUpdateStatus, { state: 'available' }>, actions: UpdateActions) {
+  // Fork build: the upstream feed lists releases without this fork's
+  // Windows fixes, so we never offer an in-place "Update Now" button.
+  // The banner stays purely informational - users can read release notes
+  // or dismiss it. To merge upstream changes the fork maintainer reinstalls
+  // a fresh installer after rebasing.
   return (
     <>
       <Download size={14} style={iconStyle} />
       <span>
-        <strong>Tolaria {status.displayVersion}</strong> is available
+        <strong>Tolaria {status.displayVersion}</strong> is available upstream (fork: install fresh build to upgrade)
       </span>
       <Button
         type="button"
@@ -75,18 +80,9 @@ function renderAvailableContent(status: Extract<VisibleUpdateStatus, { state: 'a
         size="xs"
         data-testid="update-release-notes"
         onClick={actions.openReleaseNotes}
-        style={{ color: 'var(--text-inverse)', padding: 0, height: 'auto' }}
+        style={{ color: 'var(--text-inverse)', padding: 0, height: 'auto', marginLeft: 'auto' }}
       >
         Release Notes <ExternalLink size={11} />
-      </Button>
-      <Button
-        type="button"
-        size="xs"
-        data-testid="update-now-btn"
-        onClick={actions.startDownload}
-        style={primaryActionStyle}
-      >
-        Update Now
       </Button>
       <Button
         type="button"

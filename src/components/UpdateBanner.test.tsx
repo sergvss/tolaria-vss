@@ -77,17 +77,17 @@ describe('UpdateBanner', () => {
 
     expect(screen.getByTestId('update-banner')).toBeTruthy()
     expect(screen.getByText(/Tolaria Alpha 2026\.4\.16\.3/)).toBeTruthy()
-    expect(screen.getByText(/is available/)).toBeTruthy()
-    expect(screen.getByTestId('update-now-btn')).toBeTruthy()
+    expect(screen.getByText(/is available upstream/)).toBeTruthy()
     expect(screen.getByTestId('update-release-notes')).toBeTruthy()
     expect(screen.getByTestId('update-dismiss')).toBeTruthy()
   })
 
-  it('"Update Now" calls startDownload', () => {
-    const { actions } = renderBanner(makeAvailableStatus())
-
-    fireEvent.click(screen.getByTestId('update-now-btn'))
-    expect(actions.startDownload).toHaveBeenCalledOnce()
+  it('does not show an in-place "Update Now" button on the fork', () => {
+    // Fork build: the upstream feed lists releases without this fork's
+    // Windows fixes, so we deliberately omit the install button. Users
+    // upgrade by reinstalling a fresh fork installer.
+    renderBanner(makeAvailableStatus())
+    expect(screen.queryByTestId('update-now-btn')).toBeNull()
   })
 
   it('"Release Notes" link calls openReleaseNotes', () => {
