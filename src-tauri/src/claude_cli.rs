@@ -198,7 +198,7 @@ pub fn check_cli() -> ClaudeCliStatus {
         }
     };
 
-    let version = Command::new(&bin)
+    let version = build_claude_command(&bin)
         .arg("--version")
         .output()
         .ok()
@@ -317,6 +317,28 @@ struct StreamState {
     current_tool_id: Option<String>,
 }
 
+/// Build a `Command` that can invoke `bin` even when it's a Windows `.cmd`
+/// or `.bat` shim. Rust's `Command::new` post-CVE-2024-24576 (Rust 1.77+)
+/// no longer reliably propagates stdout/args through batch shims on Windows;
+/// wrapping via `cmd.exe /C` restores correct behaviour. On Unix and for
+/// real `.exe` binaries on Windows we keep the simple direct path.
+fn build_claude_command(bin: &Path) -> Command {
+    #[cfg(windows)]
+    {
+        let needs_shim_wrapper = bin
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("cmd") || ext.eq_ignore_ascii_case("bat"))
+            .unwrap_or(false);
+        if needs_shim_wrapper {
+            let mut cmd = Command::new("cmd.exe");
+            cmd.arg("/C").arg(bin);
+            return cmd;
+        }
+    }
+    Command::new(bin)
+}
+
 /// Core subprocess runner shared by chat and agent modes.
 /// When `cwd` is `Some`, the subprocess starts with that working directory.
 fn run_claude_subprocess<F>(
@@ -328,7 +350,7 @@ fn run_claude_subprocess<F>(
 where
     F: FnMut(ClaudeStreamEvent),
 {
-    let mut cmd = Command::new(bin);
+    let mut cmd = build_claude_command(bin);
     cmd.args(args)
         .env_remove("CLAUDECODE") // prevent "nested session" guard
         .stdout(Stdio::piped())
@@ -1237,6 +1259,40 @@ mod tests {
         let result = run_claude_subprocess(&fake_bin, &[], None, &mut |e| events.push(e));
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Failed to spawn"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn build_claude_command_wraps_cmd_shim_via_cmd_exe() {
+        let bin = PathBuf::from("C:\\Users\\dev\\AppData\\Roaming\\npm\\claude.cmd");
+        let cmd = build_claude_command(&bin);
+        let program = cmd.get_program().to_string_lossy().to_string();
+        let args: Vec<String> = cmd
+            .get_args()
+            .map(|a| a.to_string_lossy().to_string())
+            .collect();
+        assert_eq!(program, "cmd.exe");
+        assert_eq!(args, vec!["/C".to_string(), bin.to_string_lossy().into_owned()]);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn build_claude_command_invokes_exe_directly() {
+        let bin = PathBuf::from("C:\\Users\\dev\\.claude\\local\\claude.exe");
+        let cmd = build_claude_command(&bin);
+        let program = cmd.get_program().to_string_lossy().to_string();
+        assert!(program.ends_with("claude.exe"));
+        assert_eq!(cmd.get_args().count(), 0);
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn build_claude_command_invokes_unix_path_directly() {
+        let bin = PathBuf::from("/usr/local/bin/claude");
+        let cmd = build_claude_command(&bin);
+        let program = cmd.get_program().to_string_lossy().to_string();
+        assert!(program.ends_with("claude"));
+        assert_eq!(cmd.get_args().count(), 0);
     }
 
     #[cfg(unix)]
