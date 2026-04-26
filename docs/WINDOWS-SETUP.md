@@ -91,18 +91,30 @@ Pre-commit and pre-push hooks run through Git Bash automatically. The `pnpm inst
 
 Pre-commit only runs Vitest if frontend files (`.ts/.tsx/.js/.jsx`, `package.json`, `pnpm-lock.yaml`, Vite/Vitest config, anything under `src/test/`) are staged. Pure docs / Rust / CI commits skip Vitest and finish in seconds. The pre-push hook still runs the full coverage gate, so the safety ratchet stays intact.
 
+## Slow pre-push? Use the local-only escape hatch
+
+`cargo llvm-cov --fail-under-lines 85` adds 5-15 minutes per push on Windows because the instrumented build is rebuilt when host artifacts diverge. The macOS test job in CI enforces the same gate, so locally you can skip it:
+
+```powershell
+$env:LAPUTA_SKIP_LOCAL_COVERAGE = "1"
+git push
+```
+
+Pre-push prints a "skipped" line and moves on; the push lands in seconds-to-minutes instead of 15+ minutes. The next commit on `main` triggers CI, which still enforces ≥85% coverage as the project ratchet.
+
+Set this in your shell profile (PowerShell `$PROFILE` or Git Bash `~/.bashrc`) if you want it permanent on a personal Windows machine. Do **not** export it in CI workflows.
+
 ## Known limitations
 
-- **`pnpm test:coverage` Rust coverage** needs `rustup component add llvm-tools-preview`. The `pnpm install` step does not add this automatically.
 - **`run_chat_stream_returns_result` and `run_agent_stream_returns_result` cargo tests are gated to non-Windows.** They invoke the real Claude CLI on every run and would burn API credit on a developer machine that has the CLI installed (mac/linux CI typically does not, so the call fails fast there). See the comment in `src-tauri/src/claude_cli.rs`.
-- **Code signing** for the NSIS installer is not configured. The Tauri auto-updater works only for signed builds, so updates from a self-built installer will not be picked up by the app's updater.
+- **Code signing** for the NSIS installer is not configured for the fork. The Tauri auto-updater works only for signed builds, so updates from a self-built installer will not be picked up by the app's updater. Reinstall a fresh `Tolaria_<version>_x64-setup.exe` to upgrade.
 - **macOS-only QA scripts** under `~/.openclaw/skills/tolaria-qa/scripts/` (`focus-app.sh`, `screenshot.sh`, `osascript keystroke …`) do not run on Windows. Use the Playwright smoke lane (`pnpm playwright:smoke`) and manual native QA for keyboard interactions until the QA helpers are ported.
 
 ## Things that "just work"
 
 These are explicitly verified on `x86_64-pc-windows-msvc`:
 
-- App launches, opens the default vault (`~/Laputa` or `%USERPROFILE%\Laputa`)
+- App launches, opens the default vault. The legacy auto-discovery path is `%USERPROFILE%\Documents\Laputa` on Windows (Documents-folder convention) and `~/Laputa` on macOS / Linux. New users go through the onboarding flow which clones the Getting Started vault under `%USERPROFILE%\Documents\Getting Started`.
 - ws-bridge spawns and stays connected
 - Claude Code CLI detected automatically when installed via npm (`claude.cmd` shim under `%APPDATA%\Roaming\npm`), Anthropic local install (`.claude\local\claude.exe`), Scoop, or via a `CLAUDE_BIN` env override
 - Codex CLI detected the same way (`CODEX_BIN` env override available)
