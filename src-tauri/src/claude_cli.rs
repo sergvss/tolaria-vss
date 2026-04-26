@@ -342,7 +342,7 @@ fn build_claude_command(bin: &Path) -> Command {
 /// Core subprocess runner shared by chat and agent modes.
 /// When `cwd` is `Some`, the subprocess starts with that working directory.
 fn run_claude_subprocess<F>(
-    bin: &PathBuf,
+    bin: &Path,
     args: &[String],
     cwd: Option<&str>,
     emit: &mut F,
