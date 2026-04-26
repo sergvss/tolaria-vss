@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { AiAgentId, AiAgentsStatus } from '../lib/aiAgents'
 import type { VaultAiGuidanceStatus } from '../lib/vaultAiGuidance'
 import type { SidebarSelection, VaultEntry } from '../types'
@@ -120,6 +121,13 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
     selection, noteListFilter, onSetNoteListFilter,
   } = config
 
+  // Subscribe to language changes so command labels rebuild when the user
+  // switches between English and Russian. The builders below call
+  // i18n.t() directly via a module-scoped const, which reads the language
+  // at call time; we just need a re-render trigger here.
+  const { i18n: i18nInstance } = useTranslation()
+  const language = i18nInstance.language
+
   const hasActiveNote = activeTabPath !== null
 
   const activeEntry = useMemo(
@@ -131,8 +139,8 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
   const isSectionGroup = selection?.kind === 'sectionGroup'
   const noteListColumnsLabel = config.noteListColumnsLabel ?? (
     selection?.kind === 'filter' && selection.filter === 'all'
-      ? 'Customize All Notes columns'
-      : 'Customize Inbox columns'
+      ? i18nInstance.t('commands.view.customizeAllNotesColumns')
+      : i18nInstance.t('commands.view.customizeInboxColumns')
   )
 
   const vaultTypes = useMemo(() => extractVaultTypes(entries), [entries])
@@ -211,5 +219,6 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
     onOpenInNewWindow, onToggleFavorite, isFavorite,
     onToggleOrganized, onCustomizeNoteListColumns, canCustomizeNoteListColumns, noteListColumnsLabel,
     onRestoreDeletedNote, canRestoreDeletedNote, activeEntry,
+    language,
   ])
 }

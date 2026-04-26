@@ -1,6 +1,9 @@
+import i18n from '../../i18n'
 import type { CommandAction } from './types'
 import type { SidebarSelection } from '../../types'
 import { canonicalizeTypeName } from '../../utils/vaultTypes'
+
+const t = (key: string, options?: Record<string, unknown>) => i18n.t(key, options) as string
 
 const PLURAL_OVERRIDES: Record<string, string> = {
   Person: 'People',
@@ -29,14 +32,18 @@ export function buildTypeCommands(
 
     if (!['note', 'type'].includes(canonicalType.toLowerCase())) {
       commands.push({
-        id: `new-${slug}`, label: `New ${canonicalType}`, group: 'Note' as const,
+        id: `new-${slug}`,
+        label: t('commands.type.newOfType', { type: canonicalType }),
+        group: 'Note',
         keywords: ['new', 'create', canonicalType.toLowerCase()],
         enabled: true, execute: () => onCreateNoteOfType(canonicalType),
       })
     }
 
     commands.push({
-      id: `list-${slug}`, label: `List ${plural}`, group: 'Navigation' as const,
+      id: `list-${slug}`,
+      label: t('commands.type.listOfType', { plural }),
+      group: 'Navigation',
       keywords: ['list', 'show', 'filter', canonicalType.toLowerCase(), plural.toLowerCase()],
       enabled: true, execute: () => onSelect({ kind: 'sectionGroup', type: canonicalType }),
     })

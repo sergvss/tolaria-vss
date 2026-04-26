@@ -90,5 +90,100 @@
     "noTags": "No tags",
     "noBacklinks": "No backlinks",
     "listEmpty": "List is empty"
+  },
+  "commands": {
+    "groups": {
+      "note": "Note",
+      "navigation": "Navigation",
+      "view": "View",
+      "git": "Git",
+      "settings": "Settings",
+      "aiAgent": "AI Agent",
+      "type": "Type"
+    },
+    "note": {
+      "newNote": "New Note",
+      "newType": "New Type",
+      "saveNote": "Save Note",
+      "deleteNote": "Delete Note",
+      "archiveNote": "Archive Note",
+      "unarchiveNote": "Unarchive Note",
+      "addToFavorites": "Add to Favorites",
+      "removeFromFavorites": "Remove from Favorites",
+      "markAsOrganized": "Mark as Organized",
+      "markAsUnorganized": "Mark as Unorganized",
+      "restoreDeleted": "Restore Deleted Note",
+      "setNoteIcon": "Set Note Icon",
+      "removeNoteIcon": "Remove Note Icon",
+      "changeNoteType": "Change Note Type…",
+      "moveToFolder": "Move Note to Folder…",
+      "openInNewWindow": "Open in New Window"
+    },
+    "navigation": {
+      "searchNotes": "Search Notes",
+      "goAll": "Go to All Notes",
+      "goArchived": "Go to Archived",
+      "goChanges": "Go to Changes",
+      "goPulse": "Go to History",
+      "goBack": "Go Back",
+      "goForward": "Go Forward",
+      "goInbox": "Go to Inbox",
+      "renameFolder": "Rename Folder",
+      "deleteFolder": "Delete Folder"
+    },
+    "view": {
+      "editorOnly": "Editor Only",
+      "editorList": "Editor + Note List",
+      "fullLayout": "Full Layout",
+      "toggleProperties": "Toggle Properties Panel",
+      "toggleDiff": "Toggle Diff Mode",
+      "toggleRawEditor": "Toggle Raw Editor",
+      "toggleAiPanel": "Toggle AI Panel",
+      "newAiChat": "New AI chat",
+      "toggleBacklinks": "Toggle Backlinks",
+      "customizeAllNotesColumns": "Customize All Notes columns",
+      "customizeInboxColumns": "Customize Inbox columns",
+      "zoomIn": "Zoom In ({{zoom}}%)",
+      "zoomOut": "Zoom Out ({{zoom}}%)",
+      "zoomReset": "Reset Zoom"
+    },
+    "git": {
+      "commitPush": "Commit & Push",
+      "addRemote": "Add Remote to Current Vault",
+      "pull": "Pull from Remote",
+      "resolveConflicts": "Resolve Conflicts",
+      "viewChanges": "View Pending Changes"
+    },
+    "type": {
+      "newOfType": "New {{type}}",
+      "listOfType": "List {{plural}}"
+    },
+    "filter": {
+      "showOpen": "Show Open Notes",
+      "showArchived": "Show Archived Notes"
+    },
+    "aiAgent": {
+      "openAiAgents": "Open AI Agents",
+      "restoreGuidance": "Restore Tolaria AI Guidance",
+      "switchTo": "Switch AI Agent to {{name}}",
+      "switchDefault": "Switch Default AI Agent",
+      "switchDefaultWith": "Switch Default AI Agent ({{label}})"
+    },
+    "settings": {
+      "openSettings": "Open Settings",
+      "openH1AutoRename": "Open H1 Auto-Rename Setting",
+      "contribute": "Contribute",
+      "checkUpdates": "Check for Updates",
+      "checkUpstreamReleases": "Check upstream Tolaria releases",
+      "createEmptyVault": "Create Empty Vault…",
+      "openVault": "Open Vault…",
+      "removeVault": "Remove Vault from List",
+      "restoreGettingStarted": "Restore Getting Started Vault",
+      "manageMcp": "Manage External AI Tools…",
+      "setupMcp": "Set Up External AI Tools…",
+      "reloadVault": "Reload Vault",
+      "repairVault": "Repair Vault",
+      "aboutTolaria": "About Tolaria"
+    }
   }
 }

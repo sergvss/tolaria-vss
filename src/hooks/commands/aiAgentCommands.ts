@@ -9,7 +9,10 @@ import {
   vaultAiGuidanceNeedsRestore,
   type VaultAiGuidanceStatus,
 } from '../../lib/vaultAiGuidance'
+import i18n from '../../i18n'
 import type { CommandAction } from './types'
+
+const t = (key: string, options?: Record<string, unknown>) => i18n.t(key, options) as string
 
 interface AiAgentCommandsConfig {
   aiAgentsStatus?: AiAgentsStatus
@@ -34,8 +37,8 @@ function explicitSwitchCommands({
     .filter((definition) => isAiAgentInstalled(aiAgentsStatus, definition.id))
     .map((definition) => ({
       id: `switch-ai-agent-${definition.id}`,
-      label: `Switch AI Agent to ${definition.label}`,
-      group: 'Settings' as const,
+      label: t('commands.aiAgent.switchTo', { name: definition.label }),
+      group: 'Settings',
       keywords: ['ai', 'agent', 'default', 'switch', 'claude', 'codex', definition.shortLabel.toLowerCase()],
       enabled: true,
       execute: () => onSetDefaultAiAgent(definition.id),
@@ -53,7 +56,7 @@ function restoreGuidanceCommands({
   return [
     {
       id: 'restore-vault-ai-guidance',
-      label: 'Restore Tolaria AI Guidance',
+      label: t('commands.aiAgent.restoreGuidance'),
       group: 'Settings',
       keywords: ['ai', 'agent', 'guidance', 'restore', 'repair', 'claude', 'codex', 'agents'],
       enabled: true,
@@ -75,7 +78,7 @@ export function buildAiAgentCommands({
   const commands: CommandAction[] = [
     {
       id: 'open-ai-agents',
-      label: 'Open AI Agents',
+      label: t('commands.aiAgent.openAiAgents'),
       group: 'Settings',
       keywords: ['ai', 'agent', 'agents', 'assistant', 'claude', 'codex', 'settings'],
       enabled: !!onOpenAiAgents,
@@ -99,7 +102,9 @@ export function buildAiAgentCommands({
 
   commands.push({
     id: 'switch-default-ai-agent',
-    label: selectedAiAgentLabel ? `Switch Default AI Agent (${selectedAiAgentLabel})` : 'Switch Default AI Agent',
+    label: selectedAiAgentLabel
+      ? t('commands.aiAgent.switchDefaultWith', { label: selectedAiAgentLabel })
+      : t('commands.aiAgent.switchDefault'),
     group: 'Settings',
     keywords: ['ai', 'agent', 'default', 'switch', 'claude', 'codex'],
     enabled: !!onCycleDefaultAiAgent,

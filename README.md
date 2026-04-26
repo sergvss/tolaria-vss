@@ -2,6 +2,8 @@
 
 > **Windows-friendly fork** maintained by [@sergvss](https://github.com/sergvss/tolaria-vss).
 > Original project by Luca Rossi: [refactoringhq/tolaria](https://github.com/refactoringhq/tolaria).
+>
+> Jump to [Windows fork additions](#windows-fork-additions) for what this fork adds on top of upstream.
 
 # 💧 Tolaria
 
@@ -97,6 +99,50 @@ pnpm tauri dev
 ## Security
 
 If you believe you have found a security issue, please report it privately as described in [SECURITY.md](./SECURITY.md).
+
+## Windows fork additions
+
+This fork at [sergvss/tolaria-vss](https://github.com/sergvss/tolaria-vss) is maintained by [@sergvss](https://github.com/sergvss). It tracks upstream and adds the following on top:
+
+### Windows portability
+- **Native Windows builds** - the upstream README still says "macOS or Linux for development". This fork compiles cleanly on `x86_64-pc-windows-msvc`, ships an NSIS installer (`Tolaria_YYYY.M.D-sergvss-win.N_x64-setup.exe`), and has CI green on `windows-2022`.
+- **Path separator fix** - introduced `src/utils/pathSeparators.ts` (`splitPath`, `getBasename`, `getStem`) and replaced ~20 `path.split('/')` call sites that broke on Windows whenever an OS-native path leaked through Tauri's IPC normalization. Most visible symptom on upstream: editor losing focus after H1-driven auto-rename.
+- **UNC `\\?\` prefix stripping** - `strip_extended_length_prefix` applied at every place a canonicalized path crossed back to the frontend, so `\\?\C:\Users\...\vault` no longer leaks into the UI.
+- **Vault path normalization** - `normalize_vault_path` in `src-tauri/src/vault/mod.rs` forces forward slashes on every OS, used by cache, rename, and vault-list paths so the cache key shape is stable cross-platform.
+- **CLI shim handling** - `Command::new(claude.cmd)` post-CVE-2024-24576 (Rust 1.77+) silently drops stdout for `.cmd` / `.bat` shims. `build_claude_command` in `claude_cli.rs` wraps the invocation as `cmd.exe /C <bin>` on Windows so the AI Agent panel actually receives streamed output. Same fix pattern is ready for Codex CLI.
+- **Inspector toggle no longer drops fullscreen** - `update_current_window_min_size` snapshots `is_maximized()` up front and restores it after `set_min_size` / `set_size` so toggling Inspector / Sidebar never accidentally unmaximizes the main window.
+- **Default vault folder on Windows** - `legacy_default_vault_path()` returns `%USERPROFILE%\Documents\Laputa` on Windows (Documents-folder convention), keeping the macOS/Linux path unchanged.
+- **Windows-reserved filename rejection** - `vault::filename_rules` blocks `CON`, `PRN`, `AUX`, `NUL`, `COM1…`, `LPT1…` before they reach the filesystem, with image-upload tests pinning the rule.
+- **Codex CLI `-c` arguments** - escapes Windows path separators via `serde_json::to_string` so the JSON-in-CLI-arg format remains valid when MCP server / vault paths contain backslashes.
+- **Husky hooks on Windows** - pre-commit narrowed to skip Vitest on docs / Rust commits (saves ~10 minutes), pre-push gained `LAPUTA_SKIP_LOCAL_COVERAGE=1` escape hatch, and the Playwright smoke server now spawns `pnpm` via shell on Windows.
+- **Postinstall** - `scripts/ensure-rust-toolchain.mjs` idempotently adds `llvm-tools-preview` so a fresh clone gets pre-push coverage working without docs digging.
+- **Stamped fork builds** - `scripts/fork-build.mjs` calendar-versions installers (`YYYY.M.D-sergvss-win.N`) instead of shipping `0.1.0`. `bundle.createUpdaterArtifacts` is `false` so unsigned fork builds finish cleanly.
+
+### Internationalization (English / Russian)
+- **react-i18next** with synchronous resource loading, CLDR pluralization for `ru`, and `i18next` initialized once in `main.tsx` (and again in vitest setup so tests render translated strings, not bare keys).
+- **Settings → Display language** picker (English / Русский) with `Settings.language` persisted by the Tauri backend. `applyLanguage()` switches i18next at runtime - no app reload needed.
+- **OS locale auto-detect** on first launch: a Russian Windows lands on the Russian UI without touching settings.
+- **Translation glossary** at [docs/i18n-glossary.md](docs/i18n-glossary.md) - source of truth for new keys (which terms stay English, which translate, plural forms, button casing, etc.).
+- **First batch translated**: Settings panel, Sidebar nav, Create-Note dialog, Confirm-Delete dialog, About dialog. More UI areas (Command Palette, Status Bar, Editor toolbar, Inspector, AI Panel, Welcome screen) are tracked in the project todo and land incrementally.
+
+### Auto-updater behaviour for the fork
+- The upstream feed at `refactoringhq.github.io/tolaria` ships unmodified Tolaria binaries without this fork's Windows fixes, so clicking "Update Now" would silently overwrite the fork with vanilla upstream. To prevent that:
+  - The "Update Now" button is removed from `UpdateBanner`. Only "Release Notes" + "Dismiss" remain - the banner becomes informational.
+  - `download_and_install_app_update` returns a clear "auto-update is disabled in this fork build" error if some path still reaches it.
+  - New Settings → Sync & Updates → **Disable update checks** toggle (`Settings.update_check_disabled`) short-circuits the check entirely.
+  - New "Check upstream Tolaria releases" entry in the command palette opens the GitHub releases page - the maintainer can review what's new without the fork ever calling install.
+
+### Branding & docs
+- **About Tolaria** dialog - new modal reachable via the command palette, credits this fork (sergvss) and the upstream project (Luca Rossi), shows version + build number.
+- **README maintainer note** at the top of this file plus this section listing concrete contributions.
+- **Cargo.toml authors** updated to include the fork maintainer.
+- **Russian docs** - `ARCHITECTURE.ru.md`, `ABSTRACTIONS.ru.md`, `GETTING-STARTED.ru.md`, `VISION.ru.md`, [WINDOWS-SETUP.ru.md](docs/WINDOWS-SETUP.ru.md). New [docs/WINDOWS-SETUP.md](docs/WINDOWS-SETUP.md) covers the toolchain, build, test, and known limitations on Windows.
+
+### CI
+- New Windows verification job pinned to `windows-2022` with workflow-level concurrency guard so PR runs cancel each other on push.
+- macOS test job still enforces the ≥85 % Rust coverage gate; the Windows job pairs with it as a build/test guardrail.
+
+If anything in this list belongs upstream and you want it as a PR series, [open an issue here](https://github.com/sergvss/tolaria-vss/issues) - the long-term plan is to land the bulk of the Windows port back in `refactoringhq/tolaria`.
 
 ## License
 

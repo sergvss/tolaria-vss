@@ -90,5 +90,100 @@
     "noTags": "Нет тегов",
     "noBacklinks": "Нет обратных ссылок",
     "listEmpty": "Список пуст"
+  },
+  "commands": {
+    "groups": {
+      "note": "Заметка",
+      "navigation": "Навигация",
+      "view": "Вид",
+      "git": "Git",
+      "settings": "Настройки",
+      "aiAgent": "ИИ-агент",
+      "type": "Тип"
+    },
+    "note": {
+      "newNote": "Новая заметка",
+      "newType": "Новый тип",
+      "saveNote": "Сохранить заметку",
+      "deleteNote": "Удалить заметку",
+      "archiveNote": "В архив",
+      "unarchiveNote": "Из архива",
+      "addToFavorites": "Добавить в избранное",
+      "removeFromFavorites": "Убрать из избранного",
+      "markAsOrganized": "Отметить как организованное",
+      "markAsUnorganized": "Отметить как неорганизованное",
+      "restoreDeleted": "Восстановить удалённую заметку",
+      "setNoteIcon": "Установить иконку",
+      "removeNoteIcon": "Убрать иконку",
+      "changeNoteType": "Изменить тип заметки…",
+      "moveToFolder": "Переместить в папку…",
+      "openInNewWindow": "Открыть в новом окне"
+    },
+    "navigation": {
+      "searchNotes": "Поиск заметок",
+      "goAll": "Перейти ко всем заметкам",
+      "goArchived": "Перейти в архив",
+      "goChanges": "Перейти к изменениям",
+      "goPulse": "Перейти к активности",
+      "goBack": "Назад",
+      "goForward": "Вперёд",
+      "goInbox": "Перейти во входящие",
+      "renameFolder": "Переименовать папку",
+      "deleteFolder": "Удалить папку"
+    },
+    "view": {
+      "editorOnly": "Только редактор",
+      "editorList": "Редактор + список заметок",
+      "fullLayout": "Полная компоновка",
+      "toggleProperties": "Переключить панель свойств",
+      "toggleDiff": "Переключить режим Diff",
+      "toggleRawEditor": "Переключить Raw-редактор",
+      "toggleAiPanel": "Переключить ИИ-панель",
+      "newAiChat": "Новый чат ИИ",
+      "toggleBacklinks": "Переключить обратные ссылки",
+      "customizeAllNotesColumns": "Настроить колонки списка всех заметок",
+      "customizeInboxColumns": "Настроить колонки входящих",
+      "zoomIn": "Увеличить ({{zoom}}%)",
+      "zoomOut": "Уменьшить ({{zoom}}%)",
+      "zoomReset": "Сбросить масштаб"
+    },
+    "git": {
+      "commitPush": "Commit и Push",
+      "addRemote": "Добавить remote к текущему хранилищу",
+      "pull": "Pull с удалённого",
+      "resolveConflicts": "Разрешить конфликты",
+      "viewChanges": "Показать ожидающие изменения"
+    },
+    "type": {
+      "newOfType": "Создать {{type}}",
+      "listOfType": "Список: {{plural}}"
+    },
+    "filter": {
+      "showOpen": "Показать открытые заметки",
+      "showArchived": "Показать архивные заметки"
+    },
+    "aiAgent": {
+      "openAiAgents": "Открыть ИИ-агентов",
+      "restoreGuidance": "Восстановить ИИ-инструкцию Tolaria",
+      "switchTo": "Переключить ИИ-агента на {{name}}",
+      "switchDefault": "Переключить ИИ-агента по умолчанию",
+      "switchDefaultWith": "Переключить ИИ-агента по умолчанию ({{label}})"
+    },
+    "settings": {
+      "openSettings": "Открыть настройки",
+      "openH1AutoRename": "Открыть настройку H1 авто-переименования",
+      "contribute": "Внести вклад",
+      "checkUpdates": "Проверить обновления",
+      "checkUpstreamReleases": "Посмотреть upstream-релизы Tolaria",
+      "createEmptyVault": "Создать пустое хранилище…",
+      "openVault": "Открыть хранилище…",
+      "removeVault": "Убрать хранилище из списка",
+      "restoreGettingStarted": "Восстановить хранилище Getting Started",
+      "manageMcp": "Управление внешними ИИ-инструментами…",
+      "setupMcp": "Настроить внешние ИИ-инструменты…",
+      "reloadVault": "Перезагрузить хранилище",
+      "repairVault": "Восстановить хранилище",
+      "aboutTolaria": "О программе Tolaria"
+    }
   }
 }

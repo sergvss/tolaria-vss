@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import type { VaultEntry } from '../types'
 import { fuzzyMatch } from '../utils/fuzzyMatch'
@@ -140,6 +141,14 @@ function CommandPaletteInput({
   )
 }
 
+const COMMAND_GROUP_LABEL_KEYS: Record<CommandGroup, string> = {
+  Navigation: 'commands.groups.navigation',
+  Note: 'commands.groups.note',
+  Git: 'commands.groups.git',
+  View: 'commands.groups.view',
+  Settings: 'commands.groups.settings',
+}
+
 function CommandPaletteResults({
   groups,
   selectedIndex,
@@ -153,6 +162,7 @@ function CommandPaletteResults({
   onHover: (index: number) => void
   onSelect: (command: CommandAction) => void
 }) {
+  const { t } = useTranslation()
   const flatList = groups.flatMap((group) => group.items)
 
   if (flatList.length === 0) {
@@ -183,7 +193,7 @@ function CommandPaletteResults({
         return (
           <div key={group}>
             <div className="px-4 pb-1 pt-2 text-[11px] font-medium text-muted-foreground">
-              {group}
+              {t(COMMAND_GROUP_LABEL_KEYS[group])}
             </div>
             {items.map((command, index) => {
               const globalIndex = startIndex + index
