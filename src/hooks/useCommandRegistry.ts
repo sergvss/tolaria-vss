@@ -57,6 +57,7 @@ interface CommandRegistryConfig {
   onSave: () => void
   onOpenSettings: () => void
   onOpenFeedback?: () => void
+  onOpenAbout?: () => void
   onOpenVault?: () => void
   onCreateEmptyVault?: () => void
   onAddRemote?: () => void
@@ -99,7 +100,7 @@ interface CommandRegistryConfig {
 export function useCommandRegistry(config: CommandRegistryConfig): import('./commands/types').CommandAction[] {
   const {
     activeTabPath, entries, modifiedCount,
-    onQuickOpen, onCreateNote, onCreateNoteOfType, onSave, onOpenSettings, onOpenFeedback,
+    onQuickOpen, onCreateNote, onCreateNoteOfType, onSave, onOpenSettings, onOpenFeedback, onOpenAbout,
     onDeleteNote, onArchiveNote, onUnarchiveNote,
     onCommitPush, onPull, onResolveConflicts, onSetViewMode, onToggleInspector, onToggleDiff, onToggleRawEditor, onToggleAIChat, onOpenVault, onCreateEmptyVault,
     activeNoteModified,
@@ -175,7 +176,7 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
     ...buildSettingsCommands({
       mcpStatus, vaultCount, isGettingStartedHidden,
       onOpenSettings, onOpenFeedback, onOpenVault, onCreateEmptyVault, onRemoveActiveVault, onRestoreGettingStarted,
-      onCheckForUpdates, onInstallMcp, onReloadVault, onRepairVault,
+      onCheckForUpdates, onInstallMcp, onReloadVault, onRepairVault, onOpenAbout,
     }),
     ...buildAiAgentCommands({
       aiAgentsStatus,
@@ -191,7 +192,7 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
     ...buildFilterCommands({ isSectionGroup, noteListFilter, onSetNoteListFilter }),
   ], [
     hasActiveNote, activeTabPath, isArchived, modifiedCount, activeNoteModified,
-    onQuickOpen, onCreateNote, onCreateNoteOfType, onCreateType, onSave, onOpenSettings, onOpenFeedback,
+    onQuickOpen, onCreateNote, onCreateNoteOfType, onCreateType, onSave, onOpenSettings, onOpenFeedback, onOpenAbout,
     onDeleteNote, onArchiveNote, onUnarchiveNote,
     onCommitPush, onPull, onResolveConflicts, onSetViewMode, onToggleInspector, onToggleDiff, onToggleRawEditor, onToggleAIChat, onOpenVault, onCreateEmptyVault, config.canAddRemote, config.onAddRemote,
     onCheckForUpdates,
