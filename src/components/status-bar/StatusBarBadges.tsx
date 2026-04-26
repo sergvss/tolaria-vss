@@ -19,6 +19,9 @@ import type { GitRemoteStatus, LastCommitInfo, SyncStatus } from '../../types'
 import { openExternalUrl } from '../../utils/url'
 import { useDismissibleLayer } from './useDismissibleLayer'
 import { ICON_STYLE, SEP_STYLE } from './styles'
+import i18n from '../../i18n'
+
+const t = (key: string, options?: Record<string, unknown>) => i18n.t(key, options) as string
 
 const SYNC_ICON_MAP: Record<string, typeof RefreshCw> = {
   syncing: Loader2,
@@ -26,11 +29,14 @@ const SYNC_ICON_MAP: Record<string, typeof RefreshCw> = {
   pull_required: ArrowDown,
 }
 
-const SYNC_LABELS: Record<string, string> = {
-  syncing: 'Syncing…',
-  conflict: 'Conflict',
-  error: 'Sync failed',
-  pull_required: 'Pull required',
+function syncStatusLabel(status: string): string | undefined {
+  switch (status) {
+    case 'syncing': return t('statusBar.syncingDots')
+    case 'conflict': return t('statusBar.syncShortConflict')
+    case 'error': return t('statusBar.syncFailed')
+    case 'pull_required': return t('statusBar.syncShortPullRequired')
+    default: return undefined
+  }
 }
 
 const SYNC_COLORS: Record<string, string> = {
@@ -39,20 +45,18 @@ const SYNC_COLORS: Record<string, string> = {
   pull_required: 'var(--accent-orange)',
 }
 
-const MCP_TOOLTIPS: Partial<Record<McpStatus, string>> = {
-  not_installed: 'External AI tools not connected — click to set up',
-}
-
 const CLAUDE_INSTALL_URL = 'https://docs.anthropic.com/en/docs/claude-code'
 
 function formatElapsedSync(lastSyncTime: number | null): string {
-  if (!lastSyncTime) return 'Not synced'
+  if (!lastSyncTime) return t('statusBar.notSynced')
   const secs = Math.round((Date.now() - lastSyncTime) / 1000)
-  return secs < 60 ? 'Synced just now' : `Synced ${Math.floor(secs / 60)}m ago`
+  return secs < 60
+    ? t('statusBar.syncedJustNow')
+    : t('statusBar.syncedMinutesAgo', { minutes: Math.floor(secs / 60) })
 }
 
 function formatSyncLabel(status: SyncStatus, lastSyncTime: number | null): string {
-  return SYNC_LABELS[status] ?? formatElapsedSync(lastSyncTime)
+  return syncStatusLabel(status) ?? formatElapsedSync(lastSyncTime)
 }
 
 function syncIconColor(status: SyncStatus): string {
@@ -60,19 +64,19 @@ function syncIconColor(status: SyncStatus): string {
 }
 
 function syncBadgeTooltipCopy(status: SyncStatus): ActionTooltipCopy {
-  if (status === 'conflict') return { label: 'Resolve merge conflicts' }
-  if (status === 'syncing') return { label: 'Sync in progress' }
-  if (status === 'pull_required') return { label: 'Pull from remote and push' }
-  if (status === 'error') return { label: 'Retry sync' }
-  return { label: 'Sync now' }
+  if (status === 'conflict') return { label: t('statusBar.resolveConflicts') }
+  if (status === 'syncing') return { label: t('statusBar.syncing') }
+  if (status === 'pull_required') return { label: t('statusBar.pullAndPush') }
+  if (status === 'error') return { label: t('statusBar.retrySync') }
+  return { label: t('statusBar.syncNow') }
 }
 
 function syncStatusText(status: SyncStatus): string {
-  if (status === 'idle') return 'Synced'
-  if (status === 'pull_required') return 'Pull required'
-  if (status === 'conflict') return 'Conflicts'
-  if (status === 'error') return 'Error'
-  if (status === 'syncing') return 'Syncing…'
+  if (status === 'idle') return t('statusBar.syncShortSynced')
+  if (status === 'pull_required') return t('statusBar.syncShortPullRequired')
+  if (status === 'conflict') return t('statusBar.syncShortConflicts')
+  if (status === 'error') return t('statusBar.syncShortError')
+  if (status === 'syncing') return t('statusBar.syncingDots')
   return status
 }
 
@@ -87,8 +91,8 @@ function isRemoteMissing(remoteStatus: GitRemoteStatus | null | undefined): bool
 function commitButtonTooltipCopy(remoteStatus: GitRemoteStatus | null | undefined): ActionTooltipCopy {
   return {
     label: isRemoteMissing(remoteStatus)
-      ? 'Commit changes locally'
-      : 'Commit and push changes',
+      ? t('statusBar.commitLocal')
+      : t('statusBar.commitAndPush'),
   }
 }
 
@@ -97,7 +101,7 @@ function getMcpBadgeConfig(status: McpStatus, onInstall?: () => void) {
   const clickable = status === 'not_installed' && Boolean(onInstall)
   return {
     clickable,
-    tooltip: MCP_TOOLTIPS[status] ?? 'MCP status unknown',
+    tooltip: status === 'not_installed' ? t('statusBar.mcpNotInstalled') : t('statusBar.mcpUnknown'),
     onClick: clickable ? onInstall : undefined,
   }
 }
@@ -107,8 +111,12 @@ function getClaudeCodeBadgeConfig(status: ClaudeCodeStatus, version?: string | n
   const missing = status === 'missing'
   return {
     missing,
-    label: missing ? 'Claude Code missing' : 'Claude Code',
-    tooltip: missing ? 'Claude Code not found — click to install' : `Claude Code${version ? ` ${version}` : ''}`,
+    label: missing ? t('statusBar.claudeCodeMissing') : t('statusBar.claudeCode'),
+    tooltip: missing
+      ? t('statusBar.claudeCodeNotFound')
+      : version
+        ? t('statusBar.claudeCodeWithVersion', { version })
+        : t('statusBar.claudeCode'),
     onActivate: missing ? () => openExternalUrl(CLAUDE_INSTALL_URL) : undefined,
   }
 }
@@ -176,22 +184,29 @@ function StatusBarSeparator({ show = true }: { show?: boolean }) {
 
 function RemoteStatusSummary({ remoteStatus }: { remoteStatus: GitRemoteStatus | null }) {
   if (!hasRemote(remoteStatus)) {
-    return <div style={{ color: 'var(--muted-foreground)', marginBottom: 6 }}>No remote configured</div>
+    return <div style={{ color: 'var(--muted-foreground)', marginBottom: 6 }}>{t('statusBar.noRemote')}</div>
   }
 
   const ahead = remoteStatus?.ahead ?? 0
   const behind = remoteStatus?.behind ?? 0
 
   if (ahead === 0 && behind === 0) {
-    return <div style={{ display: 'flex', gap: 12, marginBottom: 6, color: 'var(--muted-foreground)' }}>In sync with remote</div>
+    return <div style={{ display: 'flex', gap: 12, marginBottom: 6, color: 'var(--muted-foreground)' }}>{t('statusBar.inSync')}</div>
   }
 
   return (
     <div style={{ display: 'flex', gap: 12, marginBottom: 6, color: 'var(--muted-foreground)' }}>
-      {ahead > 0 && <span title={`${ahead} commit${ahead > 1 ? 's' : ''} ahead of remote`}>↑ {ahead} ahead</span>}
+      {ahead > 0 && (
+        <span title={ahead === 1 ? t('statusBar.aheadOne', { count: ahead }) : t('statusBar.aheadMany', { count: ahead })}>
+          ↑ {t('statusBar.aheadShort', { count: ahead })}
+        </span>
+      )}
       {behind > 0 && (
-        <span title={`${behind} commit${behind > 1 ? 's' : ''} behind remote`} style={{ color: 'var(--accent-orange)' }}>
-          ↓ {behind} behind
+        <span
+          title={behind === 1 ? t('statusBar.behindOne', { count: behind }) : t('statusBar.behindMany', { count: behind })}
+          style={{ color: 'var(--accent-orange)' }}
+        >
+          ↓ {t('statusBar.behindShort', { count: behind })}
         </span>
       )}
     </div>
@@ -232,7 +247,7 @@ function PullAction({
         onMouseLeave={(event) => { event.currentTarget.style.background = 'transparent' }}
         data-testid="git-status-pull-btn"
       >
-        <ArrowDown size={11} />Pull
+        <ArrowDown size={11} />{t('statusBar.pullButton')}
       </button>
     </div>
   )
@@ -274,7 +289,7 @@ function GitStatusPopup({
       </div>
       <RemoteStatusSummary remoteStatus={remoteStatus} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, color: 'var(--muted-foreground)' }}>
-        Status: {syncStatusText(status)}
+        {t('statusBar.statusLabel')} {syncStatusText(status)}
       </div>
       <PullAction remoteStatus={remoteStatus} onPull={onPull} onClose={onClose} />
     </div>
@@ -290,7 +305,7 @@ export function CommitBadge({ info }: { info: LastCommitInfo }) {
         role="button"
         onClick={() => openExternalUrl(commitUrl)}
         style={{ ...ICON_STYLE, color: 'var(--muted-foreground)', textDecoration: 'none', cursor: 'pointer', padding: '2px 4px', borderRadius: 3 }}
-        title={`Open commit ${info.shortHash} on GitHub`}
+        title={t('statusBar.openCommitOnGitHub', { hash: info.shortHash })}
         data-testid="status-commit-link"
         onMouseEnter={(event) => { event.currentTarget.style.color = 'var(--foreground)' }}
         onMouseLeave={(event) => { event.currentTarget.style.color = 'var(--muted-foreground)' }}
@@ -332,13 +347,13 @@ export function OfflineBadge({
           padding: '2px 6px',
           fontWeight: 600,
         }}
-        title="No internet connection"
+        title={t('statusBar.noInternet')}
         data-testid="status-offline"
       >
         <span aria-hidden="true" style={{ fontSize: 10, lineHeight: 1 }}>
           ●
         </span>
-        {compact ? null : 'Offline'}
+        {compact ? null : t('statusBar.offline')}
       </span>
     </>
   )
@@ -362,14 +377,14 @@ export function NoRemoteBadge({
       <>
         <StatusBarSeparator show={showSeparator} />
         <StatusBarAction
-          copy={{ label: 'Add a remote to this vault' }}
+          copy={{ label: t('statusBar.addRemote') }}
           onClick={onAddRemote}
           testId="status-no-remote"
           compact={compact}
         >
           <span style={ICON_STYLE}>
             <GitBranch size={12} />
-            {compact ? null : 'No remote'}
+            {compact ? null : t('statusBar.noRemoteBadge')}
           </span>
         </StatusBarAction>
       </>
@@ -388,11 +403,11 @@ export function NoRemoteBadge({
           padding: '2px 6px',
           fontWeight: 600,
         }}
-        title="This git vault has no remote configured. Commits stay local until you add one."
+        title={t('statusBar.noRemoteConfigured')}
         data-testid="status-no-remote"
       >
         <GitBranch size={12} />
-        {compact ? null : 'No remote'}
+        {compact ? null : t('statusBar.noRemoteBadge')}
       </span>
     </>
   )
@@ -473,7 +488,7 @@ export function ConflictBadge({
     <>
       <StatusBarSeparator show={showSeparator} />
       <StatusBarAction
-        copy={{ label: 'Resolve merge conflicts' }}
+        copy={{ label: t('statusBar.resolveConflicts') }}
         onClick={onClick}
         testId="status-conflict-count"
         className="text-[var(--destructive)]"
@@ -481,7 +496,7 @@ export function ConflictBadge({
       >
         <span style={ICON_STYLE}>
           <AlertTriangle size={13} />
-          {compact ? null : `${count} conflict${count > 1 ? 's' : ''}`}
+          {compact ? null : (count === 1 ? t('statusBar.conflictCountOne', { count }) : t('statusBar.conflictCountMany', { count }))}
         </span>
       </StatusBarAction>
     </>
@@ -504,7 +519,7 @@ export function ChangesBadge({
   return (
     <>
       <StatusBarSeparator show={showSeparator} />
-      <StatusBarAction copy={{ label: 'View pending changes' }} onClick={onClick} testId="status-modified-count" compact={compact}>
+      <StatusBarAction copy={{ label: t('statusBar.viewPendingChanges') }} onClick={onClick} testId="status-modified-count" compact={compact}>
         <span style={ICON_STYLE}>
           <GitDiff size={13} style={{ color: 'var(--accent-orange)' }} />
           <span
@@ -524,7 +539,7 @@ export function ChangesBadge({
           >
             {count}
           </span>
-          {compact ? null : 'Changes'}
+          {compact ? null : t('statusBar.changes')}
         </span>
       </StatusBarAction>
     </>
@@ -550,7 +565,7 @@ export function CommitButton({
       <StatusBarAction copy={commitButtonTooltipCopy(remoteStatus)} onClick={onClick} testId="status-commit-push" compact={compact}>
         <span style={ICON_STYLE}>
           <GitCommitHorizontal size={13} />
-          {compact ? null : 'Commit'}
+          {compact ? null : t('statusBar.commit')}
         </span>
       </StatusBarAction>
     </>
@@ -572,7 +587,7 @@ export function PulseBadge({
     <>
       <StatusBarSeparator show={showSeparator} />
       <StatusBarAction
-        copy={{ label: disabled ? 'History is only available for git-enabled vaults' : 'Open change history' }}
+        copy={{ label: disabled ? t('statusBar.historyDisabled') : t('statusBar.openHistory') }}
         onClick={disabled ? undefined : onClick}
         testId="status-pulse"
         disabled={Boolean(disabled)}

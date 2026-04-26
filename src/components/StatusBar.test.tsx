@@ -411,7 +411,7 @@ describe('StatusBar', () => {
       <StatusBar noteCount={100} vaultPath="/Users/luca/Laputa" vaults={vaults} onSwitchVault={vi.fn()} mcpStatus="not_installed" />
     )
     expect(screen.getByTestId('status-mcp')).toBeInTheDocument()
-    await expectTooltip(screen.getByRole('button', { name: 'External AI tools not connected — click to set up' }), 'External AI tools not connected — click to set up')
+    await expectTooltip(screen.getByRole('button', { name: 'External AI tools not connected - click to set up' }), 'External AI tools not connected - click to set up')
   })
 
   it('hides MCP badge when status is installed', () => {
@@ -595,7 +595,7 @@ describe('StatusBar', () => {
     const badge = screen.getByTestId('status-claude-code')
     expect(badge).toBeInTheDocument()
     expect(screen.getByText('Claude Code missing')).toBeInTheDocument()
-    await expectTooltip(screen.getByRole('button', { name: 'Claude Code not found — click to install' }), 'Claude Code not found — click to install')
+    await expectTooltip(screen.getByRole('button', { name: 'Claude Code not found - click to install' }), 'Claude Code not found - click to install')
   })
 
   it('opens install URL when clicking missing Claude Code badge', () => {

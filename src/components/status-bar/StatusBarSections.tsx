@@ -27,19 +27,25 @@ import { ICON_STYLE, SEP_STYLE } from './styles'
 import type { VaultOption } from './types'
 import { VaultMenu } from './VaultMenu'
 import { formatShortcutDisplay } from '../../hooks/appCommandCatalog'
+import i18n from '../../i18n'
 
-const UPDATE_TOOLTIP = { label: 'Check for updates' } as const
+const t = (key: string) => i18n.t(key)
+
+// Tooltips reach into i18n at render time (each call hits the current
+// language). Pull them via lazy getters so language switches are reflected
+// immediately without forcing every consumer to use useTranslation.
+const UPDATE_TOOLTIP = { get label() { return t('statusBar.checkUpdates') } }
 const ZOOM_RESET_TOOLTIP = {
-  label: 'Reset the zoom level',
+  get label() { return t('statusBar.zoomReset') },
   shortcut: formatShortcutDisplay({ display: '⌘0' }),
-} as const
-const FEEDBACK_TOOLTIP = { label: 'Contribute to Tolaria' } as const
-const LIGHT_MODE_TOOLTIP = { label: 'Switch to light mode' } as const
-const DARK_MODE_TOOLTIP = { label: 'Switch to dark mode' } as const
+}
+const FEEDBACK_TOOLTIP = { get label() { return t('statusBar.feedback') } }
+const LIGHT_MODE_TOOLTIP = { get label() { return t('statusBar.lightMode') } }
+const DARK_MODE_TOOLTIP = { get label() { return t('statusBar.darkMode') } }
 const SETTINGS_TOOLTIP = {
-  label: 'Open settings',
+  get label() { return t('statusBar.openSettings') },
   shortcut: formatShortcutDisplay({ display: '⌘,' }),
-} as const
+}
 
 interface StatusBarPrimarySectionProps {
   modifiedCount: number

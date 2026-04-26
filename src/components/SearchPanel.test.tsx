@@ -91,7 +91,7 @@ describe('SearchPanel', () => {
       <SearchPanel open={true} vaultPath="/vault" entries={MOCK_ENTRIES} onSelectNote={vi.fn()} onClose={vi.fn()} />,
     )
     expect(screen.getByText('Search across all note contents')).toBeInTheDocument()
-    expect(screen.getByText('Enter to open · Esc to close')).toBeInTheDocument()
+    expect(screen.getByText('Enter to open - Esc to close')).toBeInTheDocument()
   })
 
   it('has no keyword/semantic toggle', () => {

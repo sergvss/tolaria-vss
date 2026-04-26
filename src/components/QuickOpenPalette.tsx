@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { VaultEntry } from '../types'
 import { NoteSearchList } from './NoteSearchList'
 import { useNoteSearch } from '../hooks/useNoteSearch'
@@ -11,6 +12,7 @@ interface QuickOpenPaletteProps {
 }
 
 export function QuickOpenPalette({ open, entries, onSelect, onClose }: QuickOpenPaletteProps) {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const { results, selectedIndex, setSelectedIndex, handleKeyDown } = useNoteSearch(entries, query)
@@ -60,7 +62,7 @@ export function QuickOpenPalette({ open, entries, onSelect, onClose }: QuickOpen
           ref={inputRef}
           className="border-b border-border bg-transparent px-4 py-3 text-[15px] text-foreground outline-none placeholder:text-muted-foreground"
           type="text"
-          placeholder="Search notes..."
+          placeholder={t('search.placeholderQuick')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -73,7 +75,7 @@ export function QuickOpenPalette({ open, entries, onSelect, onClose }: QuickOpen
             onClose()
           }}
           onItemHover={(i) => setSelectedIndex(i)}
-          emptyMessage="No matching notes"
+          emptyMessage={t('search.noMatchingNotes')}
           className="flex-1 overflow-y-auto"
         />
       </div>

@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, useLayoutEffect } from 'react'
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import type { SearchResult, VaultEntry } from '../types'
 import { useUnifiedSearch } from '../hooks/useUnifiedSearch'
@@ -126,6 +127,7 @@ interface SearchInputProps {
 
 const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
   function SearchInput({ query, loading, onChange, onKeyDown }, ref) {
+    const { t } = useTranslation()
     return (
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
         <svg className="h-4 w-4 shrink-0 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -136,7 +138,7 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           ref={ref}
           className="flex-1 bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground"
           type="text"
-          placeholder="Search in all notes..."
+          placeholder={t('search.placeholderFull')}
           value={query}
           onChange={e => onChange(e.target.value)}
           onKeyDown={onKeyDown}
@@ -173,26 +175,27 @@ interface SearchContentProps {
 function SearchContent({
   query, results, selectedIndex, loading, elapsedMs, entryLookup, typeEntryMap, listRef, onSelect, onHover,
 }: SearchContentProps) {
+  const { t } = useTranslation()
   return (
     <div className="flex-1 overflow-y-auto">
       {!query.trim() && (
         <div className="px-4 py-8 text-center">
-          <p className="text-[13px] text-muted-foreground">Search across all note contents</p>
+          <p className="text-[13px] text-muted-foreground">{t('search.promptText')}</p>
           <p className="mt-1 text-[11px] text-muted-foreground/60">
-            Enter to open · Esc to close
+            {t('search.shortcutHint')}
           </p>
         </div>
       )}
 
       {query.trim() && results.length === 0 && loading && (
         <div className="px-4 py-8 text-center text-[13px] text-muted-foreground">
-          Searching...
+          {t('search.searchingDots')}
         </div>
       )}
 
       {query.trim() && results.length === 0 && !loading && (
         <div className="px-4 py-8 text-center">
-          <p className="text-[13px] text-muted-foreground">No results found</p>
+          <p className="text-[13px] text-muted-foreground">{t('search.noResultsFound')}</p>
         </div>
       )}
 
@@ -200,7 +203,8 @@ function SearchContent({
         <>
           <div className="border-b border-border/50 px-4 py-1.5">
             <span className="text-[11px] text-muted-foreground">
-              {results.length} result{results.length !== 1 ? 's' : ''}{elapsedMs !== null ? ` · ${elapsedMs}ms` : ''}
+              {results.length === 1 ? t('search.resultCountOne', { count: results.length }) : t('search.resultCountMany', { count: results.length })}
+              {elapsedMs !== null ? t('search.resultElapsedSuffix', { ms: elapsedMs }) : ''}
             </span>
           </div>
           <div ref={listRef}>
