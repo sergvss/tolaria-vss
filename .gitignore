@@ -72,3 +72,7 @@ CODE-HEALTH-REPORT.md
 # Local environment variables (never commit)
 .env.local
 .env.*.local
+
+# fork-build.mjs state — local installer counter and config backups
+.fork-build-counter
+.fork-version-backup-*
