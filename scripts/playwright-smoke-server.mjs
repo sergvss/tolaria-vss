@@ -11,6 +11,9 @@ const child = spawn(
     cwd: process.cwd(),
     env: process.env,
     stdio: ['pipe', 'inherit', 'inherit'],
+    // On Windows, pnpm is a `.cmd` shim; without shell:true, Node's spawn
+    // looks for a literal `pnpm` executable and fails with ENOENT.
+    shell: process.platform === 'win32',
   },
 )
 
