@@ -128,8 +128,14 @@ else
 fi
 
 # ── 3. Rust coverage (≥85% lines) ──────────────────────────────────────
+# Local-only escape hatch: `LAPUTA_SKIP_LOCAL_COVERAGE=1` skips this step.
+# Useful on Windows where instrumented `cargo llvm-cov` runs add 5-15 min
+# per push; CI on macos-15 still enforces the same ≥85% gate, so the
+# project ratchet is unaffected. Do not set this in CI.
 echo ""
-if [ "$RUST_CHANGED" = true ]; then
+if [ "${LAPUTA_SKIP_LOCAL_COVERAGE:-0}" = "1" ]; then
+  echo "⏭️  [3/5] Rust coverage — skipped (LAPUTA_SKIP_LOCAL_COVERAGE=1; CI still enforces ≥85%)"
+elif [ "$RUST_CHANGED" = true ]; then
   LLVM_COV_FLAGS="--no-clean"
   if [ "${LAPUTA_FULL_COVERAGE:-0}" = "1" ]; then
     LLVM_COV_FLAGS=""
