@@ -93,22 +93,48 @@ echo "🚀 Pre-push checks (replaces CI — do not skip)"
 echo "================================================"
 
 # ── Detect what changed ─────────────────────────────────────────────────
+# `RUST_CHANGED` gates clippy/fmt + Rust coverage.
+# `FRONTEND_CHANGED` gates vite build + vitest.
+# When the push is *only* docs (Markdown / docs/ tree), short-circuit the
+# whole hook - those files cannot affect runtime, tests, or the build.
 PUSH_TARGET=$(git rev-parse @{push} 2>/dev/null || echo "")
 RUST_CHANGED=true
+FRONTEND_CHANGED=true
 
 if [ -n "$PUSH_TARGET" ]; then
   CHANGED=$(git diff --name-only "$PUSH_TARGET"..HEAD)
+
+  # Docs-only short-circuit: every file matches *.md or sits under docs/.
+  NON_DOCS=$(echo "$CHANGED" | grep -vE '(^docs/|\.md$)' || true)
+  if [ -z "$NON_DOCS" ] && [ -n "$CHANGED" ]; then
+    echo ""
+    echo "📚 Docs-only push — skipping all checks"
+    echo "   Changed files:"
+    echo "$CHANGED" | sed 's/^/     /'
+    echo ""
+    echo "✅ Pre-push skipped (docs-only)"
+    exit 0
+  fi
+
   if ! echo "$CHANGED" | grep -qE '^(src-tauri/|Cargo)'; then
     RUST_CHANGED=false
+  fi
+
+  if ! echo "$CHANGED" | grep -qE '^(src/|public/|index\.html|package\.json|pnpm-lock\.yaml|vite\.config|vitest\.config|tsconfig|src/test/)'; then
+    FRONTEND_CHANGED=false
   fi
 fi
 
 # ── 0. TypeScript + Vite build ──────────────────────────────────────────
 echo ""
-echo "📦 [0/5] TypeScript + Vite build..."
-pnpm exec tsc --noEmit
-pnpm build
-echo "  ✅ Build OK"
+if [ "$FRONTEND_CHANGED" = true ]; then
+  echo "📦 [0/5] TypeScript + Vite build..."
+  pnpm exec tsc --noEmit
+  pnpm build
+  echo "  ✅ Build OK"
+else
+  echo "⏭️  [0/5] TypeScript + Vite build — skipped (no frontend changes)"
+fi
 
 # ── 1. Frontend tests (full suite, no coverage) ────────────────────────
 # Fork change: drop the coverage instrumentation locally. Coverage adds
@@ -117,14 +143,17 @@ echo "  ✅ Build OK"
 # the ≥70 % gate via `pnpm test:coverage`. Set LAPUTA_FULL_PRE_PUSH=1 to
 # opt back into the coverage run locally before a release-style push.
 echo ""
-if [ "${LAPUTA_FULL_PRE_PUSH:-0}" = "1" ]; then
+if [ "$FRONTEND_CHANGED" = false ]; then
+  echo "⏭️  [1/5] Frontend tests — skipped (no frontend changes)"
+elif [ "${LAPUTA_FULL_PRE_PUSH:-0}" = "1" ]; then
   echo "📊 [1/5] Frontend tests + coverage (≥70%)..."
   pnpm test:coverage --silent
+  echo "  ✅ Frontend tests OK"
 else
   echo "📊 [1/5] Frontend tests (no coverage, --bail 1)..."
   pnpm exec vitest run --silent --bail 1
+  echo "  ✅ Frontend tests OK"
 fi
-echo "  ✅ Frontend tests OK"
 
 # ── 2. Rust lint (clippy + fmt) — fast, run before coverage ─────────────
 echo ""
@@ -190,83 +219,12 @@ else
   echo "⏭️  [4/5] Playwright core smoke tests — skipped (set LAPUTA_FULL_PRE_PUSH=1 to enable; CI on GitHub Actions still runs the full smoke lane)"
 fi
 
-# ── 5. CodeScene code health gate (ratchet) ──────────────────────────────
-# Thresholds live in .codescene-thresholds and only ever go UP (ratchet).
-# If remote scores improved, the hook updates the file and stops so the new
-# floor is committed with normal verified hooks before the next push.
-# If the remote baseline is already below threshold, allow recovery pushes to
-# land; otherwise the stale remote score would block the refactors required to
-# restore the gate.
-THRESHOLDS_FILE="$(git rev-parse --show-toplevel)/.codescene-thresholds"
-HOTSPOT_MIN=9.45
-AVERAGE_MIN=9.29
-if [ -f "$THRESHOLDS_FILE" ]; then
-  HOTSPOT_MIN=$(grep HOTSPOT_THRESHOLD "$THRESHOLDS_FILE" | cut -d= -f2)
-  AVERAGE_MIN=$(grep AVERAGE_THRESHOLD "$THRESHOLDS_FILE" | cut -d= -f2)
-fi
-
-echo ""
-echo "🏥 [5/5] CodeScene code health (Hotspot ≥${HOTSPOT_MIN} + Average ≥${AVERAGE_MIN})..."
-if [ -z "$CODESCENE_PAT" ] || [ -z "$CODESCENE_PROJECT_ID" ]; then
-  echo "  ⚠️  CODESCENE_PAT or CODESCENE_PROJECT_ID not set — skipping"
-else
-  API_RESPONSE=$(curl -sf \
-    -H "Authorization: Bearer $CODESCENE_PAT" \
-    -H "Accept: application/json" \
-    "https://api.codescene.io/v2/projects/$CODESCENE_PROJECT_ID" 2>/dev/null || echo "{}")
-  HOTSPOT_SCORE=$(echo "$API_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['analysis']['hotspot_code_health']['now'])" 2>/dev/null || echo "")
-  AVERAGE_SCORE=$(echo "$API_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['analysis']['code_health']['now'])" 2>/dev/null || echo "")
-  if [ -z "$HOTSPOT_SCORE" ] || [ -z "$AVERAGE_SCORE" ]; then
-    echo "  ⚠️  Could not fetch remote scores — skipping (CI will enforce)"
-  else
-    echo "  Remote Hotspot Code Health: $HOTSPOT_SCORE (threshold: $HOTSPOT_MIN)"
-    echo "  Remote Average Code Health: $AVERAGE_SCORE (threshold: $AVERAGE_MIN)"
-    PYTHON_STATUS=0
-    python3 -c "
-import sys
-
-hotspot = float('$HOTSPOT_SCORE')
-average = float('$AVERAGE_SCORE')
-hotspot_min = float('$HOTSPOT_MIN')
-average_min = float('$AVERAGE_MIN')
-failed = False
-
-if hotspot < hotspot_min:
-    print(f'WARN: Hotspot Code Health {hotspot:.2f} < {hotspot_min} — remote baseline is currently red')
-    failed = True
-else:
-    print(f'OK: Hotspot {hotspot:.2f} >= {hotspot_min}')
-
-if average < average_min:
-    print(f'WARN: Average Code Health {average:.2f} < {average_min} — remote baseline is currently red')
-    failed = True
-else:
-    print(f'OK: Average {average:.2f} >= {average_min}')
-
-if failed:
-    print('  ⚠️  Recovery mode: allowing this push so refactors can land and restore the gate on a later analysis.')
-    sys.exit(0)
-
-import math
-thresholds_file = '$THRESHOLDS_FILE'
-new_hotspot = max(hotspot_min, math.floor(hotspot * 100) / 100)
-new_average = max(average_min, math.floor(average * 100) / 100)
-if new_hotspot > hotspot_min or new_average > average_min:
-    with open(thresholds_file, 'w') as f:
-        f.write(f'HOTSPOT_THRESHOLD={new_hotspot}\nAVERAGE_THRESHOLD={new_average}\n')
-    print(f'  📈 Ratchet updated: Hotspot {hotspot_min} → {new_hotspot}, Average {average_min} → {new_average}')
-    sys.exit(3)
-" || PYTHON_STATUS=$?
-    if [ "$PYTHON_STATUS" -ne 0 ] && [ "$PYTHON_STATUS" -ne 3 ]; then
-      exit "$PYTHON_STATUS"
-    fi
-    if [ "$PYTHON_STATUS" -eq 3 ]; then
-      git add "$THRESHOLDS_FILE"
-      echo "  ❌ Commit the updated .codescene-thresholds with a normal verified commit, then push again."
-      exit 1
-    fi
-  fi
-fi
+# Fork change: removed CodeScene step entirely. We do not run a CodeScene
+# project for this fork (CODESCENE_PAT / CODESCENE_PROJECT_ID are never
+# set), so the previous "[5/5] CodeScene" stage was a no-op that printed
+# a warning every push. Upstream still ratchets via .codescene-thresholds
+# in CI; if we ever hook the fork into a CodeScene project we can
+# resurrect this stage from git history (commit before this change).
 
 END_TIME=$(date +%s)
 ELAPSED=$((END_TIME - START_TIME))
