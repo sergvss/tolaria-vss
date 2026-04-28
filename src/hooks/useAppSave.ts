@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useEditorSaveWithLinks } from './useEditorSaveWithLinks'
 import { flushEditorContent } from '../utils/autoSave'
 import { extractH1TitleFromContent } from '../utils/noteTitle'
+import { slugify } from './useNoteCreation'
 import { isTauri } from '../mock-tauri'
 import type { VaultEntry } from '../types'
 import { getStem } from '../utils/pathSeparators'
@@ -95,6 +96,26 @@ function shouldScheduleUntitledRename({
     && initialH1AutoRenameEnabled
     && isUntitledRenameCandidate(path)
     && extractH1TitleFromContent(content) !== null
+}
+
+/** Schedule a title-driven rename for a non-untitled note when its H1 has
+ *  drifted from the filename. Mirrors the auto-rename-on-h1 behaviour but
+ *  for the lifetime of the note (untitled rename only fires once). */
+function shouldScheduleTitleRename({
+  path,
+  content,
+  initialH1AutoRenameEnabled,
+}: {
+  path: string
+  content: string
+  initialH1AutoRenameEnabled: boolean
+}): boolean {
+  if (!isTauri() || !initialH1AutoRenameEnabled) return false
+  if (isUntitledRenameCandidate(path)) return false
+  const h1 = extractH1TitleFromContent(content)
+  if (!h1) return false
+  const expectedStem = slugify(h1)
+  return expectedStem !== getStem(path)
 }
 
 function matchingPendingRename({
@@ -352,6 +373,103 @@ function useUntitledRenameScheduler({
   }
 }
 
+function useTitleRenameExecutor({
+  resolvedPath,
+  tabsRef,
+  activeTabPathRef,
+  setTabs,
+  handleSwitchTab,
+  replaceEntry,
+  loadModifiedFiles,
+  renamedPathsRef,
+  inFlightUntitledRenameRef,
+}: {
+  resolvedPath: string
+  tabsRef: MutableRefObject<TabState[]>
+  activeTabPathRef: MutableRefObject<string | null>
+  setTabs: AppSaveDeps['setTabs']
+  handleSwitchTab: AppSaveDeps['handleSwitchTab']
+  replaceEntry: AppSaveDeps['replaceEntry']
+  loadModifiedFiles: AppSaveDeps['loadModifiedFiles']
+  renamedPathsRef: MutableRefObject<RenamedPathMap>
+  inFlightUntitledRenameRef: MutableRefObject<InFlightRenameMap>
+}) {
+  return useCallback(async (path: string) => {
+    if (inFlightUntitledRenameRef.current.has(path)) return false
+    const tab = tabsRef.current.find((t) => t.entry.path === path)
+    if (!tab) return false
+    const h1 = extractH1TitleFromContent(tab.content)
+    if (!h1 || slugify(h1) === getStem(path)) return false
+    const oldTitle = tab.entry.title
+
+    const renamePromise = (async () => {
+      try {
+        const result = await invoke<{ new_path: string; updated_files: number }>('rename_note', {
+          vaultPath: resolvedPath,
+          oldPath: path,
+          newTitle: h1,
+          oldTitle: oldTitle ?? null,
+        })
+        if (result.new_path === path) return path
+        trackRenamedPath(renamedPathsRef.current, path, result.new_path)
+        await reloadAutoRenamedNote({
+          oldPath: path,
+          newPath: result.new_path,
+          tabsRef,
+          activeTabPathRef,
+          setTabs,
+          handleSwitchTab,
+          replaceEntry,
+          loadModifiedFiles,
+        })
+        return result.new_path
+      } catch {
+        return path
+      } finally {
+        inFlightUntitledRenameRef.current.delete(path)
+      }
+    })()
+    inFlightUntitledRenameRef.current.set(path, renamePromise)
+    return (await renamePromise) !== path
+  }, [
+    resolvedPath,
+    tabsRef,
+    activeTabPathRef,
+    setTabs,
+    handleSwitchTab,
+    replaceEntry,
+    loadModifiedFiles,
+    renamedPathsRef,
+    inFlightUntitledRenameRef,
+  ])
+}
+
+function useTitleRenameScheduler({
+  executeTitleRename,
+  initialH1AutoRenameEnabled,
+}: {
+  executeTitleRename: (path: string) => Promise<boolean>
+  initialH1AutoRenameEnabled: boolean
+}) {
+  const pendingTitleRenameRef = useRef<PendingUntitledRename | null>(null)
+
+  const scheduleTitleRename = useCallback((path: string, content: string) => {
+    if (!shouldScheduleTitleRename({ path, content, initialH1AutoRenameEnabled })) {
+      takePendingRename({ pendingRenameRef: pendingTitleRenameRef, path })
+      return
+    }
+    schedulePendingRename({
+      pendingRenameRef: pendingTitleRenameRef,
+      path,
+      onFire: (pendingPath) => {
+        void executeTitleRename(pendingPath)
+      },
+    })
+  }, [executeTitleRename, initialH1AutoRenameEnabled])
+
+  return { scheduleTitleRename }
+}
+
 function useUntitledRenameCoordinator({
   resolvedPath,
   tabsRef,
@@ -389,12 +507,27 @@ function useUntitledRenameCoordinator({
     renamedPathsRef,
     inFlightUntitledRenameRef,
   })
+  const executeTitleRename = useTitleRenameExecutor({
+    resolvedPath,
+    tabsRef,
+    activeTabPathRef,
+    setTabs,
+    handleSwitchTab,
+    replaceEntry,
+    loadModifiedFiles,
+    renamedPathsRef,
+    inFlightUntitledRenameRef,
+  })
   const {
     pendingUntitledRenameRef,
     cancelPendingUntitledRename,
     flushPendingUntitledRename,
     scheduleUntitledRename,
   } = useUntitledRenameScheduler({ executeUntitledRename, initialH1AutoRenameEnabled })
+  const { scheduleTitleRename } = useTitleRenameScheduler({
+    executeTitleRename,
+    initialH1AutoRenameEnabled,
+  })
 
   return {
     pendingUntitledRenameRef,
@@ -404,6 +537,7 @@ function useUntitledRenameCoordinator({
     resolvePathBeforeSave,
     flushPendingUntitledRename,
     scheduleUntitledRename,
+    scheduleTitleRename,
   }
 }
 
@@ -592,6 +726,7 @@ function useEditorPersistence({
   clearUnsaved,
   reloadViews,
   scheduleUntitledRename,
+  scheduleTitleRename,
   resolveCurrentPath,
   resolvePathBeforeSave,
 }: {
@@ -603,6 +738,7 @@ function useEditorPersistence({
   clearUnsaved: AppSaveDeps['clearUnsaved']
   reloadViews: AppSaveDeps['reloadViews']
   scheduleUntitledRename: (path: string, content: string) => void
+  scheduleTitleRename: (path: string, content: string) => void
   resolveCurrentPath: (path: string) => string
   resolvePathBeforeSave: (path: string) => Promise<string>
 }) {
@@ -614,7 +750,8 @@ function useEditorPersistence({
     clearUnsaved(path)
     if (path.endsWith('.yml')) reloadViews?.()
     scheduleUntitledRename(path, content)
-  }, [clearUnsaved, reloadViews, scheduleUntitledRename])
+    scheduleTitleRename(path, content)
+  }, [clearUnsaved, reloadViews, scheduleUntitledRename, scheduleTitleRename])
 
   const {
     handleSave: handleSaveRaw,
@@ -750,6 +887,7 @@ export function useAppSave({
   const {
     pendingUntitledRenameRef, cancelPendingUntitledRename, registerRenamedPath,
     resolveCurrentPath, resolvePathBeforeSave, flushPendingUntitledRename, scheduleUntitledRename,
+    scheduleTitleRename,
   } = useUntitledRenameCoordinator({
     resolvedPath,
     tabsRef,
@@ -769,6 +907,7 @@ export function useAppSave({
     clearUnsaved,
     reloadViews,
     scheduleUntitledRename,
+    scheduleTitleRename,
     resolveCurrentPath,
     resolvePathBeforeSave,
   })
