@@ -62,7 +62,14 @@ export function pathStem(path: FilePath): PathStem {
 }
 
 export function slugifyPathStem(title: NoteTitle): PathStem {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  // Unicode-aware: keep Cyrillic / CJK / Greek letters so titles like
+  // "Тестовая запись" produce "тестовая-запись", matching the filename
+  // the Rust rename pipeline writes to disk.
+  return title
+    .normalize('NFKC')
+    .toLocaleLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, '-')
+    .replace(/(^-|-$)/g, '')
 }
 
 export function isUntitledPath(path: FilePath): boolean {

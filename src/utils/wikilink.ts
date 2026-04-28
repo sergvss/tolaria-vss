@@ -27,9 +27,16 @@ export function relativePathStem(absolutePath: string, vaultPath: string): strin
   return filename.replace(/\.md$/, '')
 }
 
-/** Slugify a human-readable title into the canonical wikilink filename stem. */
+/** Slugify a human-readable title into the canonical wikilink filename stem.
+ *  Unicode-aware so Cyrillic / CJK / Greek titles produce non-empty slugs and
+ *  resolve to the actual file on disk. */
 export function slugifyWikilinkTarget(title: string): string {
-  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  const slug = title
+    .normalize('NFKC')
+    .toLocaleLowerCase()
+    .trim()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, '-')
+    .replace(/(^-|-$)/g, '')
   return slug || 'untitled'
 }
 

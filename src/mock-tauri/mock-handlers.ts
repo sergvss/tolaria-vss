@@ -170,7 +170,13 @@ function canonicalRenameTargets({ oldTitle, oldPathStem }: { oldTitle: string; o
 }
 
 function slugifyMockTitle({ title }: { title: string }) {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  // Mirror the Rust `title_to_slug` (Unicode-aware) so mock-mode renames
+  // line up with native renames for Cyrillic / CJK titles.
+  return title
+    .normalize('NFKC')
+    .toLocaleLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, '-')
+    .replace(/(^-|-$)/g, '')
 }
 
 function buildRenamedMockPath({ oldPath, newTitle }: { oldPath: string; newTitle: string }) {

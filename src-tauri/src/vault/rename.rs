@@ -56,11 +56,18 @@ struct WikilinkUpdateSummary {
 }
 
 /// Convert a title to a filename slug (lowercase, hyphens, no special chars).
+///
+/// Uses Unicode-aware `is_alphanumeric` so non-Latin scripts (Cyrillic,
+/// CJK, Greek, etc.) survive intact. The previous `is_ascii_alphanumeric`
+/// implementation collapsed every Cyrillic letter to a hyphen, which made
+/// titles like "Тестовая запись" slug to an empty string and the file ended
+/// up named `.md` (or got stuck at `untitled-…` because rename silently
+/// produced a path with no stem).
 pub(super) fn title_to_slug(title: &str) -> String {
     title
         .to_lowercase()
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
         .collect::<String>()
         .split('-')
         .filter(|s| !s.is_empty())
@@ -639,6 +646,52 @@ mod tests {
         assert_eq!(title_to_slug("Weekly Review"), "weekly-review");
         assert_eq!(title_to_slug("My  Note!  "), "my-note");
         assert_eq!(title_to_slug("Hello World"), "hello-world");
+    }
+
+    #[test]
+    fn test_title_to_slug_preserves_cyrillic() {
+        // Regression: ASCII-only slug used to collapse "Тестовая запись"
+        // to "" → file got renamed to `.md` and disappeared from the list.
+        assert_eq!(title_to_slug("Тестовая запись"), "тестовая-запись");
+        assert_eq!(title_to_slug("Привет, мир!"), "привет-мир");
+        // Mixed scripts must survive too.
+        assert_eq!(title_to_slug("Hello мир 2024"), "hello-мир-2024");
+    }
+
+    #[test]
+    fn test_rename_note_with_cyrillic_title() {
+        let dir = TempDir::new().unwrap();
+        let vault = dir.path();
+        create_test_file(
+            vault,
+            "untitled-note-1.md",
+            "---\ntype: Note\n---\n# Тестовая запись\n",
+        );
+
+        let old_path = vault.join("untitled-note-1.md");
+        let result = rename_note(RenameNoteRequest {
+            vault_path: vault.to_str().unwrap(),
+            old_path: old_path.to_str().unwrap(),
+            new_title: "Тестовая запись",
+            old_title_hint: None,
+        })
+        .expect("rename with cyrillic title should succeed");
+
+        // Regression: the old ASCII-only slug produced an empty stem and
+        // the file ended up at `.md` (or stayed `untitled-…`).
+        assert!(
+            result.new_path.ends_with("тестовая-запись.md"),
+            "expected file renamed to тестовая-запись.md, got {}",
+            result.new_path,
+        );
+        assert!(Path::new(&result.new_path).exists());
+        let content = fs::read_to_string(&result.new_path).unwrap();
+        // YAML may quote the value (`title: "Тестовая запись"`); accept either
+        // form so this test is decoupled from the serializer's quoting policy.
+        assert!(
+            content.contains("Тестовая запись"),
+            "frontmatter must mention the new title, got: {content}",
+        );
     }
 
     #[test]

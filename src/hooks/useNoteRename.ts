@@ -99,8 +99,11 @@ export async function performMoveNoteToFolder({
 }
 
 export function buildRenamedEntry(entry: VaultEntry, newTitle: string, newPath: string): VaultEntry {
-  const slug = newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-  return { ...entry, path: newPath, filename: `${slug}.md`, title: newTitle }
+  // Use the shared `slugify` (Unicode-aware via \p{Letter}\p{Number}) so
+  // titles with Cyrillic / CJK / Greek characters survive intact. The old
+  // `[^a-z0-9]+` regex stripped every non-Latin letter and produced filenames
+  // like `.md` for "Тестовая запись".
+  return { ...entry, path: newPath, filename: `${slugify(newTitle)}.md`, title: newTitle }
 }
 
 export function buildFilenameRenamedEntry(entry: VaultEntry, newPath: string): VaultEntry {
