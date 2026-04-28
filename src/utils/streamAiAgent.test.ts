@@ -55,7 +55,7 @@ describe('streamAiAgent', () => {
 
     const promise = streamAiAgent({
       agent: 'codex',
-      message: '<conversation_history>\n[user]: first\n\n[user]: latest\n</conversation_history>',
+      message: 'Earlier in this conversation: I asked: "first". Now I am asking: latest',
       vaultPath: '/vault',
       callbacks,
     })

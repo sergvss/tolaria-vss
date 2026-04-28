@@ -162,15 +162,28 @@ export function buildContextSnapshot(params: ContextSnapshotParams): string {
     }))
   }
 
-  const preamble = [
+  // Single-line preamble. Claude Code CLI is sensitive to embedded newlines
+  // in command-line args (multi-line `-p` / `--append-system-prompt` values
+  // make it drop out of stream-json mode), so we keep both the focus block
+  // and the preamble on a single line each.
+  const focusSentences = [
+    `ACTIVE NOTE — the user has this file open: path=${activeEntry.path}, title=${activeEntry.title}, type=${activeEntry.isA ?? 'Note'}.`,
+    'When the user says "this file", "the file", "the note", "the document", or gives any read/edit/write instruction without naming a different file, they mean the active note. Edit that exact path directly.',
+    'Do NOT run Glob, Grep, Bash, or git tools to figure out which file — the answer is the path above. Do NOT ask "which file?" — act on the active note. The other vault files are listed in the JSON snapshot below for reference; touch them only when the user names them.',
+  ]
+
+  const preambleSentences = [
     'You are an AI assistant integrated into Tolaria, a personal knowledge management app.',
-    'The user is viewing a specific note. Use the structured context below to answer questions accurately.',
-    'You can also use MCP tools to search, read, create, or edit notes in the vault.',
+    'You can use MCP tools to search, read, create, or edit notes in the vault.',
     'If the body field is empty but wordCount is > 0, the content may be stale — use get_note to read the full note from disk.',
     'When you mention or reference a note by name, always use [[Note Title]] wikilink syntax so the user can click to open it.',
-  ].join('\n')
+  ]
 
-  return `${preamble}\n\n## Context Snapshot\n\`\`\`json\n${JSON.stringify(snapshot, null, 2)}\n\`\`\``
+  const header = [...focusSentences, ...preambleSentences].join(' ')
+  // The JSON snapshot stays multi-line in the system prompt — multi-line
+  // is fine for `--append-system-prompt`, the parser issue we hit was
+  // specifically with multi-line `-p` (user-message) values.
+  return `${header}\n\n## Context Snapshot\n\`\`\`json\n${JSON.stringify(snapshot, null, 2)}\n\`\`\``
 }
 
 /** Legacy: Build a contextual system prompt (text-based). */

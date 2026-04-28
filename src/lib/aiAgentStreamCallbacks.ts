@@ -22,10 +22,6 @@ export interface StreamMutationContext {
 
 const EMPTY_CLAUDE_RESPONSE = 'Claude Code finished without returning a reply.'
 
-function finalResponseText(response: string): string {
-  return response.trim() ? response : EMPTY_CLAUDE_RESPONSE
-}
-
 export function createStreamCallbacks(context: StreamMutationContext) {
   const {
     messageId,
@@ -101,16 +97,23 @@ export function createStreamCallbacks(context: StreamMutationContext) {
       if (abortRef.current.aborted) return
 
       setStatus('done')
-      const finalResponse = finalResponseText(responseAccRef.current)
-      updateMessage(setMessages, messageId, (message) => ({
-        ...message,
-        isStreaming: false,
-        reasoningDone: true,
-        response: finalResponse,
-        actions: message.actions.map((action) => (
-          action.status === 'pending' ? { ...action, status: 'done' as const } : action
-        )),
-      }))
+      const streamed = responseAccRef.current
+      updateMessage(setMessages, messageId, (message) => {
+        // Preserve a response already set by onError; only fall back to the
+        // empty-reply notice when nothing else has been written.
+        const finalResponse = streamed.trim()
+          ? streamed
+          : message.response ?? EMPTY_CLAUDE_RESPONSE
+        return {
+          ...message,
+          isStreaming: false,
+          reasoningDone: true,
+          response: finalResponse,
+          actions: message.actions.map((action) => (
+            action.status === 'pending' ? { ...action, status: 'done' as const } : action
+          )),
+        }
+      })
       fileCallbacksRef.current?.onVaultChanged?.()
     },
   }

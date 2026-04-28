@@ -71,6 +71,7 @@ export function useAiPanelController({
   const agent = useCliAiAgent(vaultPath, contextPrompt, fileCallbacks, {
     agent: defaultAiAgent,
     agentReady: defaultAiAgentReady,
+    activeNotePath: activeEntry?.path,
   })
   const hasContext = !!activeEntry
   const isActive = agent.status === 'thinking' || agent.status === 'tool-executing'

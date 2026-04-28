@@ -79,14 +79,37 @@ export function trimHistory(history: ChatMessage[], maxTokens: number): ChatMess
   return result
 }
 
-/** Format conversation history + new message into a single prompt for the CLI. */
+/** Format conversation history + new message into a single prompt for the CLI.
+ *
+ * Two constraints shape this format:
+ *   1. Avoid `<conversation_history>` XML tags and `[user]:` / `[assistant]:`
+ *      markers — Claude Code's CLI heuristically recognises them as its own
+ *      internal templating and stops emitting `stream-json` events.
+ *   2. Keep the value passed to `-p` on a SINGLE line (no `\n`). Multi-line
+ *      `-p` values trigger Claude Code's interactive/REPL-style fallback
+ *      (it answers with `(No response)` + `[Context automatically cleared…]`
+ *      instead of streaming JSON), most likely because its argparser treats
+ *      embedded newlines as turn boundaries.
+ *
+ * To collapse history onto one line we replace any line breaks inside an
+ * individual message with a literal ` ⏎ ` so the model still sees prose
+ * structure without us shipping raw `\n` bytes through the CLI.
+ */
 export function formatMessageWithHistory(history: ChatMessage[], newMessage: string): string {
-  if (history.length === 0) return newMessage
+  if (history.length === 0) return collapseLines(newMessage)
 
-  const lines = history.map(m => `[${m.role}]: ${m.content}`)
-  lines.push(`[user]: ${newMessage}`)
+  const parts: string[] = ['Earlier in this conversation:']
+  for (const message of history) {
+    const speaker = message.role === 'user' ? 'I asked' : 'You replied'
+    parts.push(`${speaker}: "${collapseLines(message.content)}".`)
+  }
+  parts.push(`Now I am asking: ${collapseLines(newMessage)}`)
 
-  return `<conversation_history>\n${lines.join('\n\n')}\n</conversation_history>\n\nContinue the conversation. Respond only to the latest [user] message.`
+  return parts.join(' ')
+}
+
+function collapseLines(text: string): string {
+  return text.replace(/\r?\n+/g, ' ⏎ ')
 }
 
 // --- Claude CLI status ---
@@ -154,13 +177,10 @@ function handleChatStreamEvent(
  * can verify that history is actually being sent.
  */
 function mockChatResponse(message: string): string {
-  if (message.includes('<conversation_history>')) {
-    const allUserLines = message.match(/\[user\]: .+/g) ?? []
-    const turnCount = allUserLines.length
-    // The last [user] line is the actual new message
-    const lastLine = allUserLines[allUserLines.length - 1] ?? ''
-    const lastUserMsg = lastLine.replace('[user]: ', '')
-    return `[mock-with-history turns=${turnCount}] You asked: "${lastUserMsg}"`
+  if (message.includes('Earlier in this conversation:')) {
+    const turns = (message.match(/I asked: /g) ?? []).length + 1
+    const tail = message.split('Now I am asking: ').pop()?.trim() ?? ''
+    return `[mock-with-history turns=${turns}] You asked: "${tail}"`
   }
   return `[mock-no-history] You said: "${message}"`
 }

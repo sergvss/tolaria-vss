@@ -21,6 +21,7 @@ export type { AiAgentMessage } from '../lib/aiAgentConversation'
 interface UseCliAiAgentOptions {
   agent: AiAgentId
   agentReady: boolean
+  activeNotePath?: string
 }
 
 interface UseCliAiAgentRuntime extends AiAgentSessionRuntime {
@@ -66,7 +67,7 @@ export function useCliAiAgent(
   fileCallbacks: AgentFileCallbacks | undefined,
   options: UseCliAiAgentOptions,
 ) {
-  const { agent, agentReady } = options
+  const { agent, agentReady, activeNotePath } = options
   const runtime = useCliAiAgentRuntime(fileCallbacks)
   const { messages, status } = runtime
 
@@ -78,6 +79,7 @@ export function useCliAiAgent(
         ready: agentReady,
         vaultPath,
         systemPromptOverride: contextPrompt,
+        activeNotePath,
       },
       prompt: { text, references },
     })

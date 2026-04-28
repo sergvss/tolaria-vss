@@ -189,6 +189,40 @@ describe('aiAgentStreamCallbacks', () => {
     ])
   })
 
+  it('preserves the error response when onDone fires after onError', () => {
+    // Regression: streamAiAgent calls closeStream() (= onDone) after every
+    // request, including those that errored. Without this guard, onDone
+    // would clobber the "Error: ..." message with the empty-reply notice
+    // and the user could not see what actually went wrong.
+    const messages = createMessageStore([
+      {
+        id: 'msg-1',
+        userMessage: 'Question',
+        actions: [],
+        isStreaming: true,
+      },
+    ])
+    const status = createStatusStore('thinking')
+
+    const callbacks = createStreamCallbacks({
+      messageId: 'msg-1',
+      vaultPath: '/vault',
+      setMessages: messages.setMessages,
+      setStatus: status.setStatus,
+      abortRef: { current: { aborted: false } },
+      responseAccRef: { current: '' },
+      toolInputMapRef: { current: new Map() },
+      fileCallbacksRef: { current: undefined },
+    })
+
+    callbacks.onError('Failed to spawn claude: not found')
+    callbacks.onDone()
+
+    expect(messages.getMessages()[0].response).toBe(
+      'Error: Failed to spawn claude: not found',
+    )
+  })
+
   it('ignores stream events after the request has been aborted', () => {
     const messages = createMessageStore([
       {

@@ -223,7 +223,15 @@ where
 }
 
 /// Build CLI arguments for a chat stream request.
+///
+/// Fork override: pin the model to Sonnet (`claude-sonnet-4-6`). The CLI
+/// default is Opus 4.7 with the 1M-token window which costs significantly
+/// more per call. Sonnet 4.6 keeps quality for routine fork requests
+/// (note rewrites, light refactors, search) while keeping the API bill
+/// sane. Override at runtime with `CLAUDE_MODEL=<id>` if a richer call
+/// is needed.
 fn build_chat_args(req: &ChatStreamRequest) -> Vec<String> {
+    let model = std::env::var("CLAUDE_MODEL").unwrap_or_else(|_| "sonnet".to_string());
     let mut args: Vec<String> = vec![
         "-p".into(),
         req.message.clone(),
@@ -231,6 +239,8 @@ fn build_chat_args(req: &ChatStreamRequest) -> Vec<String> {
         "stream-json".into(),
         "--verbose".into(),
         "--include-partial-messages".into(),
+        "--model".into(),
+        model,
         "--tools".into(),
         String::new(), // empty string → disable all built-in tools
     ];
@@ -262,8 +272,13 @@ where
 
 /// Build CLI arguments for an agent stream request.
 /// Native tools (bash, read, write, edit) are enabled by default — no `--tools ""`.
+///
+/// Fork override: same model pin as chat (`sonnet`, override via
+/// `CLAUDE_MODEL`). Agent calls cost more per request because of tool
+/// loops, so the savings vs Opus are larger here.
 fn build_agent_args(req: &AgentStreamRequest) -> Result<Vec<String>, String> {
     let mcp_config = build_mcp_config(&req.vault_path)?;
+    let model = std::env::var("CLAUDE_MODEL").unwrap_or_else(|_| "sonnet".to_string());
 
     let mut args: Vec<String> = vec![
         "-p".into(),
@@ -272,6 +287,8 @@ fn build_agent_args(req: &AgentStreamRequest) -> Result<Vec<String>, String> {
         "stream-json".into(),
         "--verbose".into(),
         "--include-partial-messages".into(),
+        "--model".into(),
+        model,
         "--mcp-config".into(),
         mcp_config,
         "--dangerously-skip-permissions".into(),
@@ -318,25 +335,145 @@ struct StreamState {
 }
 
 /// Build a `Command` that can invoke `bin` even when it's a Windows `.cmd`
-/// or `.bat` shim. Rust's `Command::new` post-CVE-2024-24576 (Rust 1.77+)
-/// no longer reliably propagates stdout/args through batch shims on Windows;
-/// wrapping via `cmd.exe /C` restores correct behaviour. On Unix and for
-/// real `.exe` binaries on Windows we keep the simple direct path.
+/// or `.bat` shim.
+///
+/// Fork fix: on Windows, `cmd.exe /C claude.cmd <args>` re-encodes UTF-8
+/// arguments through the active OEM/ANSI code page (CP1251 on Russian
+/// Windows). That mangles every non-ASCII prompt - "автор" arrives at
+/// claude.exe as `Р°РІС‚РѕСЂ`. We bypass that by locating the underlying
+/// `cli.js` and invoking `node cli.js` directly: Rust's `Command::new`
+/// uses `CreateProcessW` which preserves UTF-16 args end-to-end. If we
+/// can't find the JS bundle we fall back to `cmd.exe /C` (ASCII-only
+/// prompts still work, English-only users won't notice).
+///
+/// On Windows we always go through `crate::hidden_command` so the helper
+/// process runs without flashing a console window.
 fn build_claude_command(bin: &Path) -> Command {
     #[cfg(windows)]
     {
-        let needs_shim_wrapper = bin
+        let is_shim = bin
             .extension()
             .and_then(|ext| ext.to_str())
             .map(|ext| ext.eq_ignore_ascii_case("cmd") || ext.eq_ignore_ascii_case("bat"))
             .unwrap_or(false);
-        if needs_shim_wrapper {
-            let mut cmd = Command::new("cmd.exe");
+        if is_shim {
+            if let Some((node, cli_js)) = find_node_and_cli_js(bin) {
+                let mut cmd = crate::hidden_command(node);
+                cmd.arg(cli_js);
+                return cmd;
+            }
+            let mut cmd = crate::hidden_command("cmd.exe");
             cmd.arg("/C").arg(bin);
             return cmd;
         }
+        return crate::hidden_command(bin);
     }
+    #[cfg(not(windows))]
     Command::new(bin)
+}
+
+/// Locate `node.exe` and the underlying `cli.js` for an npm `.cmd` shim.
+///
+/// `cli.js` lives next to the shim at
+/// `<shim_dir>/node_modules/@anthropic-ai/claude-code/cli.js`. `node.exe`
+/// can be anywhere — npm global shims sit in `%APPDATA%\Roaming\npm\` but
+/// system-wide node installs typically live in `C:\Program Files\nodejs\`,
+/// so we search next-to-shim first, then PATH, then common install dirs.
+///
+/// Returns both paths when found, or `None` if either is missing (we fall
+/// back to `cmd.exe /C` in that case — but that path mangles multi-line
+/// args so callers should keep their args single-line if relying on it).
+#[cfg(windows)]
+fn find_node_and_cli_js(shim: &Path) -> Option<(PathBuf, PathBuf)> {
+    let dir = shim.parent()?;
+    let cli_js_candidates = [
+        dir.join("node_modules")
+            .join("@anthropic-ai")
+            .join("claude-code")
+            .join("cli.js"),
+        dir.join("node_modules")
+            .join("@anthropic")
+            .join("claude-code")
+            .join("cli.js"),
+    ];
+    let cli_js = cli_js_candidates.into_iter().find(|p| p.is_file())?;
+    let node = locate_node_exe(dir)?;
+    Some((node, cli_js))
+}
+
+/// Find `node.exe`: alongside the shim → PATH → standard install locations.
+#[cfg(windows)]
+fn locate_node_exe(shim_dir: &Path) -> Option<PathBuf> {
+    let local = shim_dir.join("node.exe");
+    if local.is_file() {
+        return Some(local);
+    }
+
+    if let Ok(output) = crate::platform::which_command("node").output() {
+        if output.status.success() {
+            if let Some(path) = crate::platform::first_executable_path_line(
+                &String::from_utf8_lossy(&output.stdout),
+            ) {
+                if path.is_file() {
+                    return Some(path);
+                }
+            }
+        }
+    }
+
+    let system_candidates = [
+        PathBuf::from(r"C:\Program Files\nodejs\node.exe"),
+        PathBuf::from(r"C:\Program Files (x86)\nodejs\node.exe"),
+    ];
+    system_candidates.into_iter().find(|p| p.is_file())
+}
+
+/// Truncate a string to roughly `max_bytes` bytes for log output without
+/// splitting a UTF-8 char in half — Rust string slicing by byte index
+/// panics when the cut lands inside a multi-byte character (e.g. between
+/// the two bytes of `ч`). We round the cap *down* to the nearest char
+/// boundary so cyrillic/emoji content never crashes the logger.
+fn truncate_for_log(s: &str, max_bytes: usize) -> String {
+    if s.len() <= max_bytes {
+        return s.to_string();
+    }
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}…[{} chars]", &s[..end], s.chars().count())
+}
+
+/// Append a debug entry to the fork-only debug log if the file exists.
+/// The file is created lazily on the first call; we never auto-create it
+/// in production to keep release behaviour clean. To enable: drop an empty
+/// `claude_debug.log` into the same directory as `settings.json`
+/// (`%APPDATA%\com.tolaria.app\` on Windows). To disable: delete the file.
+fn debug_log(label: &str, payload: &str) {
+    let Some(config_dir) = dirs::config_dir() else { return };
+    let log_path = config_dir
+        .join("com.tolaria.app")
+        .join("claude_debug.log");
+    let log_path_legacy = config_dir
+        .join("com.laputa.app")
+        .join("claude_debug.log");
+    let target = if log_path.exists() {
+        log_path
+    } else if log_path_legacy.exists() {
+        log_path_legacy
+    } else {
+        return;
+    };
+    let stamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
+    let line = format!("[{stamp}] {label}: {payload}\n");
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&target)
+    {
+        use std::io::Write;
+        let _ = file.write_all(line.as_bytes());
+    }
 }
 
 /// Core subprocess runner shared by chat and agent modes.
@@ -350,6 +487,19 @@ fn run_claude_subprocess<F>(
 where
     F: FnMut(ClaudeStreamEvent),
 {
+    debug_log(
+        "spawn",
+        &format!(
+            "bin={} cwd={:?} args={}",
+            bin.display(),
+            cwd,
+            args.iter()
+                .map(|a| truncate_for_log(a, 200))
+                .collect::<Vec<_>>()
+                .join(" ")
+        ),
+    );
+
     let mut cmd = build_claude_command(bin);
     cmd.args(args)
         .env_remove("CLAUDECODE") // prevent "nested session" guard
@@ -360,7 +510,10 @@ where
     }
     let mut child = cmd
         .spawn()
-        .map_err(|e| format!("Failed to spawn claude: {e}"))?;
+        .map_err(|e| {
+            debug_log("spawn-err", &e.to_string());
+            format!("Failed to spawn claude: {e}")
+        })?;
 
     let stdout = child.stdout.take().ok_or("No stdout handle")?;
     let reader = std::io::BufReader::new(stdout);
@@ -371,10 +524,12 @@ where
         current_tool_id: None,
     };
 
+    let mut line_count = 0usize;
     for line in reader.lines() {
         let line = match line {
             Ok(l) => l,
             Err(e) => {
+                debug_log("read-err", &e.to_string());
                 emit(ClaudeStreamEvent::Error {
                     message: format!("Read error: {e}"),
                 });
@@ -386,9 +541,15 @@ where
             continue;
         }
 
+        line_count += 1;
+        debug_log("stdout", &truncate_for_log(&line, 500));
+
         let json: serde_json::Value = match serde_json::from_str(&line) {
             Ok(v) => v,
-            Err(_) => continue, // skip non-JSON lines
+            Err(e) => {
+                debug_log("parse-err", &e.to_string());
+                continue; // skip non-JSON lines
+            }
         };
 
         dispatch_event(&json, &mut state, emit);
@@ -402,6 +563,21 @@ where
         .unwrap_or_default();
 
     let status = child.wait().map_err(|e| format!("Wait failed: {e}"))?;
+
+    debug_log(
+        "exit",
+        &format!(
+            "code={:?} success={} session_id_empty={} stdout_lines={} stderr_len={}",
+            status.code(),
+            status.success(),
+            state.session_id.is_empty(),
+            line_count,
+            stderr_output.len()
+        ),
+    );
+    if !stderr_output.trim().is_empty() {
+        debug_log("stderr", stderr_output.trim());
+    }
 
     if !status.success() && state.session_id.is_empty() {
         emit(ClaudeStreamEvent::Error {
@@ -1263,7 +1439,8 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
-    fn build_claude_command_wraps_cmd_shim_via_cmd_exe() {
+    fn build_claude_command_falls_back_to_cmd_exe_when_node_missing() {
+        // No node.exe / cli.js on disk next to this fake path → fallback.
         let bin = PathBuf::from("C:\\Users\\dev\\AppData\\Roaming\\npm\\claude.cmd");
         let cmd = build_claude_command(&bin);
         let program = cmd.get_program().to_string_lossy().to_string();
@@ -1276,6 +1453,36 @@ mod tests {
             args,
             vec!["/C".to_string(), bin.to_string_lossy().into_owned()]
         );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn build_claude_command_invokes_node_directly_when_cli_js_present() {
+        // Materialise an npm-style layout in a temp dir and verify the
+        // builder bypasses cmd.exe in favour of `node cli.js`.
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+        let shim = dir.join("claude.cmd");
+        let node = dir.join("node.exe");
+        let cli_js = dir
+            .join("node_modules")
+            .join("@anthropic-ai")
+            .join("claude-code")
+            .join("cli.js");
+        std::fs::create_dir_all(cli_js.parent().unwrap()).unwrap();
+        std::fs::write(&shim, b"@echo off\r\n").unwrap();
+        std::fs::write(&node, b"stub").unwrap();
+        std::fs::write(&cli_js, b"// stub").unwrap();
+
+        let cmd = build_claude_command(&shim);
+        let program = cmd.get_program().to_string_lossy().to_string();
+        let args: Vec<String> = cmd
+            .get_args()
+            .map(|a| a.to_string_lossy().to_string())
+            .collect();
+        assert!(program.ends_with("node.exe"), "expected node, got {program}");
+        assert_eq!(args.len(), 1);
+        assert!(args[0].ends_with("cli.js"), "expected cli.js arg, got {:?}", args);
     }
 
     #[cfg(windows)]

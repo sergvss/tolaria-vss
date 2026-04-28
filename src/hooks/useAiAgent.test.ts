@@ -248,7 +248,7 @@ describe('useAiAgent', () => {
     expect(mockStreamClaudeAgent).toHaveBeenCalledTimes(1)
     const sentMessage = mockStreamClaudeAgent.mock.calls[0][0]
     expect(sentMessage).toBe('Hello')
-    expect(sentMessage).not.toContain('<conversation_history>')
+    expect(sentMessage).not.toContain('Earlier in this conversation:')
   })
 
   it('embeds conversation history in second message', async () => {
@@ -277,7 +277,7 @@ describe('useAiAgent', () => {
 
     // Second call: includes history
     const secondMsg = mockStreamClaudeAgent.mock.calls[1][0]
-    expect(secondMsg).toContain('<conversation_history>')
+    expect(secondMsg).toContain('Earlier in this conversation:')
     expect(secondMsg).toContain('What is 2+2?')
     expect(secondMsg).toContain('The answer is 4')
     expect(secondMsg).toContain('What was my previous question?')
@@ -333,7 +333,7 @@ describe('useAiAgent', () => {
 
     const lastCall = mockStreamClaudeAgent.mock.calls[mockStreamClaudeAgent.mock.calls.length - 1]
     expect(lastCall[0]).toBe('fresh start')
-    expect(lastCall[0]).not.toContain('<conversation_history>')
+    expect(lastCall[0]).not.toContain('Earlier in this conversation:')
   })
 })
 

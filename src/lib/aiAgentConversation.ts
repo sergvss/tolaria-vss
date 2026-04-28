@@ -28,6 +28,10 @@ export interface AgentExecutionContext {
   ready: boolean
   vaultPath: string
   systemPromptOverride?: string
+  /** Absolute path to the note the user has open. Prefixed onto every user
+   *  message so Claude can't miss the focus, even if Claude Code's auto
+   *  `git status` distracts it. */
+  activeNotePath?: string
 }
 
 export interface PendingUserPrompt {
@@ -94,8 +98,17 @@ export function buildFormattedMessage(
   const chatHistory = toChatHistory(messages.filter((message) => !message.isStreaming))
   const trimmedHistory = trimHistory(chatHistory, MAX_HISTORY_TOKENS)
 
+  // Prepend the active note path so it lands in the freshest part of the
+  // prompt — system prompts get cached and Claude weights recent user
+  // turns more heavily, especially when its auto `git status` competes
+  // for attention. Use a single-line separator (no `\n`) so Windows
+  // `cmd.exe /C` fallback doesn't truncate the argument.
+  const userText = context.activeNotePath
+    ? `[active file: ${context.activeNotePath}] ${prompt.text}`
+    : prompt.text
+
   return {
-    formattedMessage: formatMessageWithHistory(trimmedHistory, prompt.text),
+    formattedMessage: formatMessageWithHistory(trimmedHistory, userText),
     systemPrompt,
   }
 }

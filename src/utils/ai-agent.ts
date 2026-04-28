@@ -52,12 +52,10 @@ export interface AgentStreamCallbacks {
  * can verify that history is actually being sent.
  */
 function mockAgentResponse(message: string): string {
-  if (message.includes('<conversation_history>')) {
-    const allUserLines = message.match(/\[user\]: .+/g) ?? []
-    const turnCount = allUserLines.length
-    const lastLine = allUserLines[allUserLines.length - 1] ?? ''
-    const lastUserMsg = lastLine.replace('[user]: ', '')
-    return `[mock-with-history turns=${turnCount}] You asked: "${lastUserMsg}" — This note is related to [[Build Laputa App]] and [[Matteo Cellini]].`
+  if (message.includes('Earlier in this conversation:')) {
+    const turns = (message.match(/I asked: /g) ?? []).length + 1
+    const tail = message.split('Now I am asking: ').pop()?.trim() ?? ''
+    return `[mock-with-history turns=${turns}] You asked: "${tail}" — This note is related to [[Build Laputa App]] and [[Matteo Cellini]].`
   }
   return `[mock-no-history] You said: "${message}" — This note is related to [[Build Laputa App]] and [[Matteo Cellini]].`
 }

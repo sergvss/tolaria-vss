@@ -148,9 +148,17 @@ describe('formatMessageWithHistory', () => {
   it('labels user and assistant messages correctly', () => {
     const history = [msg('user', 'Q1'), msg('assistant', 'A1')]
     const result = formatMessageWithHistory(history, 'Q2')
-    expect(result).toContain('[user]: Q1')
-    expect(result).toContain('[assistant]: A1')
-    expect(result).toContain('[user]: Q2')
+    expect(result).toContain('I asked: "Q1"')
+    expect(result).toContain('You replied: "A1"')
+    expect(result).toContain('Now I am asking: Q2')
+  })
+
+  it('emits a single-line prompt without raw newlines', () => {
+    // Claude Code CLI drops out of stream-json mode when -p value contains
+    // raw `\n`. The formatter must collapse multi-line content.
+    const history = [msg('user', 'first\nsecond'), msg('assistant', 'a\nb')]
+    const result = formatMessageWithHistory(history, 'multi\nline')
+    expect(result).not.toContain('\n')
   })
 
   it('preserves message order', () => {

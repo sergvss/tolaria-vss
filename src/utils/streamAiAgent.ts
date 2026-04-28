@@ -29,12 +29,10 @@ export interface StreamAiAgentRequest {
 
 function mockAgentResponse(agent: AiAgentId, message: string): string {
   const agentLabel = getAiAgentDefinition(agent).label
-  if (message.includes('<conversation_history>')) {
-    const allUserLines = message.match(/\[user\]: .+/g) ?? []
-    const turnCount = allUserLines.length
-    const lastLine = allUserLines[allUserLines.length - 1] ?? ''
-    const lastUserMsg = lastLine.replace('[user]: ', '')
-    return `[mock-${agentLabel.toLowerCase()} turns=${turnCount}] You asked: "${lastUserMsg}" — This note is related to [[Build Laputa App]] and [[Matteo Cellini]].`
+  if (message.includes('Earlier in this conversation:')) {
+    const turns = (message.match(/I asked: /g) ?? []).length + 1
+    const tail = message.split('Now I am asking: ').pop()?.trim() ?? ''
+    return `[mock-${agentLabel.toLowerCase()} turns=${turns}] You asked: "${tail}" — This note is related to [[Build Laputa App]] and [[Matteo Cellini]].`
   }
   return `[mock-${agentLabel.toLowerCase()}] You said: "${message}" — This note is related to [[Build Laputa App]] and [[Matteo Cellini]].`
 }
@@ -84,14 +82,31 @@ export async function streamAiAgent(
   const { invoke } = await import('@tauri-apps/api/core')
   const { listen } = await import('@tauri-apps/api/event')
   let closed = false
+  let unlisten: (() => void) | null = null
+
+  const detach = (): void => {
+    if (unlisten) {
+      const fn = unlisten
+      unlisten = null
+      fn()
+    }
+  }
 
   const closeStream = (): void => {
     if (closed) return
     closed = true
+    // Stop listening immediately so events from a NEXT request can't be
+    // delivered to this stream's stale callbacks. Without this, two streams
+    // overlap on the shared `'ai-agent-stream'` channel and the new request's
+    // TextDeltas leak into the previous (already-closed) message — which the
+    // user sees as "Claude Code finished without returning a reply" on the
+    // current message.
+    detach()
     callbacks.onDone()
   }
 
-  const unlisten = await listen<AiAgentStreamEvent>('ai-agent-stream', (event) => {
+  unlisten = await listen<AiAgentStreamEvent>('ai-agent-stream', (event) => {
+    if (closed) return
     if (event.payload.kind === 'Done') {
       closeStream()
       return
@@ -114,6 +129,6 @@ export async function streamAiAgent(
     callbacks.onError(err instanceof Error ? err.message : String(err))
     closeStream()
   } finally {
-    unlisten()
+    detach()
   }
 }
