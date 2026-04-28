@@ -450,13 +450,11 @@ fn truncate_for_log(s: &str, max_bytes: usize) -> String {
 /// `claude_debug.log` into the same directory as `settings.json`
 /// (`%APPDATA%\com.tolaria.app\` on Windows). To disable: delete the file.
 fn debug_log(label: &str, payload: &str) {
-    let Some(config_dir) = dirs::config_dir() else { return };
-    let log_path = config_dir
-        .join("com.tolaria.app")
-        .join("claude_debug.log");
-    let log_path_legacy = config_dir
-        .join("com.laputa.app")
-        .join("claude_debug.log");
+    let Some(config_dir) = dirs::config_dir() else {
+        return;
+    };
+    let log_path = config_dir.join("com.tolaria.app").join("claude_debug.log");
+    let log_path_legacy = config_dir.join("com.laputa.app").join("claude_debug.log");
     let target = if log_path.exists() {
         log_path
     } else if log_path_legacy.exists() {
@@ -508,12 +506,10 @@ where
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
     }
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| {
-            debug_log("spawn-err", &e.to_string());
-            format!("Failed to spawn claude: {e}")
-        })?;
+    let mut child = cmd.spawn().map_err(|e| {
+        debug_log("spawn-err", &e.to_string());
+        format!("Failed to spawn claude: {e}")
+    })?;
 
     let stdout = child.stdout.take().ok_or("No stdout handle")?;
     let reader = std::io::BufReader::new(stdout);
@@ -1480,9 +1476,16 @@ mod tests {
             .get_args()
             .map(|a| a.to_string_lossy().to_string())
             .collect();
-        assert!(program.ends_with("node.exe"), "expected node, got {program}");
+        assert!(
+            program.ends_with("node.exe"),
+            "expected node, got {program}"
+        );
         assert_eq!(args.len(), 1);
-        assert!(args[0].ends_with("cli.js"), "expected cli.js arg, got {:?}", args);
+        assert!(
+            args[0].ends_with("cli.js"),
+            "expected cli.js arg, got {:?}",
+            args
+        );
     }
 
     #[cfg(windows)]

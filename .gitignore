@@ -39,6 +39,10 @@ final_selection.py
 # Claude Code task signals
 .claude-done
 .claude-blocked
+
+# Local Claude Code harness settings (per-machine permission allowlist)
+.claude/settings.json
+.claude/settings.local.json
 src-tauri/target
 
 # Generated mcp-server bundle (built by scripts/bundle-mcp-server.mjs)
