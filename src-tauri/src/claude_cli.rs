@@ -366,7 +366,7 @@ fn build_claude_command(bin: &Path) -> Command {
             cmd.arg("/C").arg(bin);
             return cmd;
         }
-        return crate::hidden_command(bin);
+        crate::hidden_command(bin)
     }
     #[cfg(not(windows))]
     Command::new(bin)
