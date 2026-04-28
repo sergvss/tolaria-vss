@@ -80,6 +80,14 @@ function rootOptions(): ReactRootOptions {
   return options
 }
 
+// Cold `import('./main')` is heavy on Windows + Node 24 + Vitest 4: i18n
+// init reads two locale JSON bundles, applies the stored theme mode, and
+// pulls in the full appCommandCatalog graph. `vi.resetModules()` in
+// `beforeEach` re-runs that graph for every test, which intermittently
+// blows past the default 5s/10s testTimeout on Windows. Bump to 30s so
+// the suite isn't blocked on a slow cold start.
+const MAIN_ENTRYPOINT_TIMEOUT_MS = 30_000
+
 describe('main entrypoint', () => {
   beforeEach(() => {
     vi.resetModules()
@@ -104,7 +112,7 @@ describe('main entrypoint', () => {
     rootOptions().onCaughtError?.(error, { componentStack: '\n    in App' })
 
     expect(mocks.sentryHandler).toHaveBeenCalledWith(error, { componentStack: '\n    in App' })
-  }, 10_000)
+  }, MAIN_ENTRYPOINT_TIMEOUT_MS)
 
   it('normalizes missing React component stacks before handing errors to Sentry', async () => {
     await importEntrypoint()
@@ -113,7 +121,7 @@ describe('main entrypoint', () => {
     rootOptions().onRecoverableError?.(error, {})
 
     expect(mocks.sentryHandler).toHaveBeenCalledWith(error, { componentStack: '' })
-  })
+  }, MAIN_ENTRYPOINT_TIMEOUT_MS)
 
   it('prevents browser navigation for file drags and still lets app drop handlers run', async () => {
     await importEntrypoint()
@@ -127,7 +135,7 @@ describe('main entrypoint', () => {
     expect(dragOverEvent.defaultPrevented).toBe(true)
     expect(dropEvent.defaultPrevented).toBe(true)
     expect(appDropHandler).toHaveBeenCalledWith(dropEvent)
-  })
+  }, MAIN_ENTRYPOINT_TIMEOUT_MS)
 
   it('leaves editor file drags to the editor drop handler', async () => {
     await importEntrypoint()
@@ -143,7 +151,7 @@ describe('main entrypoint', () => {
 
     expect(dragOverEvent.defaultPrevented).toBe(false)
     expect(dropEvent.defaultPrevented).toBe(false)
-  })
+  }, MAIN_ENTRYPOINT_TIMEOUT_MS)
 
   it('does not prevent app-internal drags without file payloads', async () => {
     await importEntrypoint()
@@ -157,5 +165,5 @@ describe('main entrypoint', () => {
     document.body.dispatchEvent(dragOverEvent)
 
     expect(dragOverEvent.defaultPrevented).toBe(false)
-  })
+  }, MAIN_ENTRYPOINT_TIMEOUT_MS)
 })
